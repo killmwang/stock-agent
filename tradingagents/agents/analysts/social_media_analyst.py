@@ -1,7 +1,12 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+import os
 import time
 import json
 from tradingagents.agents.utils.agent_utils import is_china_stock
+
+
+def _has_tushare_token() -> bool:
+    return bool(os.getenv("TUSHARE_TOKEN", "").strip())
 
 
 def create_social_media_analyst(llm, toolkit):
@@ -11,7 +16,26 @@ def create_social_media_analyst(llm, toolkit):
         company_name = state["company_of_interest"]
 
         # 根据市场类型选择工具
-        if is_china_stock(ticker):
+        if is_china_stock(ticker) and not _has_tushare_token():
+            tools = [
+                toolkit.get_china_stock_sentiment,
+                toolkit.get_china_money_flow,
+                toolkit.get_china_stock_news,
+                toolkit.get_china_market_news,
+            ]
+            system_message = """您是课堂展示版智能选股 Agent 的A股市场情绪分析师。
+
+当前未配置 TUSHARE_TOKEN，因此必须使用 AKShare/公开数据替代工具完成分析，禁止调用或假装调用 Tushare 数据。
+
+请围绕以下维度输出中文报告：
+1. 市场情绪：根据公开新闻、市场新闻和工具返回的情绪摘要判断热度与关注点。
+2. 资金动向：根据 get_china_money_flow 返回的数据分析主力资金、散户资金或可用资金流信息。
+3. 新闻线索：提炼与该股票或所属行业有关的近期事件，只引用工具返回的可用信息。
+4. 数据缺口：明确说明未接入 Tushare 时无法稳定覆盖前十大股东、股东人数、融资融券、质押、大宗交易、龙虎榜、基金持股等字段，不要编造这些指标。
+5. 课堂结论：给出“情绪偏正面/中性/偏谨慎”的观察判断，并说明置信度。
+
+请避免使用“买入推荐”等表述，统一使用“候选股票池”“观察标的”“策略筛选结果”。"""
+        elif is_china_stock(ticker):
             # 中国A股使用 Tushare Pro 情绪和资金流向工具（高质量数据）+ 深度资金分析
             tools = [
                 toolkit.get_tushare_stock_basic,           # 首先获取股票基本信息（准确名称）

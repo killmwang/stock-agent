@@ -220,12 +220,12 @@ class AnalysisService:
                 config["chroma_db_path"] = "/app/chroma_db"
 
             if not os.getenv("TUSHARE_TOKEN"):
-                selected_analysts = ["market"]
+                selected_analysts = ["market", "social", "news", "fundamentals"]
                 config["deep_think_llm"] = config.get("quick_think_llm", "deepseek-chat")
                 config["max_tokens"] = 2000
                 self._add_log(
                     task_id,
-                    "未配置 TUSHARE_TOKEN，启用课堂稳定模式：仅运行市场分析师，并使用快速模型生成后续结论。"
+                    "未配置 TUSHARE_TOKEN，启用 AKShare 替代数据模式：运行市场、情绪、新闻、基本面分析师，并跳过 Tushare 专属字段。"
                 )
             else:
                 selected_analysts = ["market", "social", "news", "fundamentals"]

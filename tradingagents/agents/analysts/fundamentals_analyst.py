@@ -1,7 +1,12 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+import os
 import time
 import json
 from tradingagents.agents.utils.agent_utils import is_china_stock
+
+
+def _has_tushare_token() -> bool:
+    return bool(os.getenv("TUSHARE_TOKEN", "").strip())
 
 
 def create_fundamentals_analyst(llm, toolkit):
@@ -11,7 +16,27 @@ def create_fundamentals_analyst(llm, toolkit):
         company_name = state["company_of_interest"]
 
         # 根据市场类型选择工具
-        if is_china_stock(ticker):
+        if is_china_stock(ticker) and not _has_tushare_token():
+            tools = [
+                toolkit.get_china_financial_report,
+                toolkit.get_china_stock_indicators,
+                toolkit.get_china_earnings_forecast,
+                toolkit.get_china_stock_news,
+            ]
+            system_message = """您是课堂展示版智能选股 Agent 的A股基本面分析师。
+
+当前未配置 TUSHARE_TOKEN，因此必须使用 AKShare/公开数据替代工具完成分析，禁止调用或假装调用 Tushare 数据。
+
+请围绕以下维度输出中文报告：
+1. 财务概览：基于 get_china_financial_report 返回的可用财报摘要，说明收入、利润、现金流或负债相关观察。
+2. 指标观察：基于 get_china_stock_indicators 返回的可用估值/财务指标，谨慎讨论 PE、PB、ROE、毛利率等字段；缺失则明确标注。
+3. 业绩预期：基于 get_china_earnings_forecast 返回的业绩预告信息，说明是否存在业绩改善或下滑线索。
+4. 新闻补充：基于公开新闻补充影响基本面的事件，不要把新闻当作确定事实。
+5. 数据缺口：明确说明未接入 Tushare 时无法稳定覆盖券商研报、机构调研、行业成分对比、历史估值分位、回购、分红明细等字段，不要编造这些指标。
+6. 课堂结论：给出“基本面偏稳健/中性/偏谨慎”的观察判断，并说明置信度。
+
+请避免使用“买入推荐”等表述，统一使用“候选股票池”“观察标的”“策略筛选结果”。"""
+        elif is_china_stock(ticker):
             # 中国A股使用 Tushare Pro 基本面工具（高质量数据）+ 机构观点工具
             tools = [
                 toolkit.get_tushare_stock_basic,           # 首先获取股票基本信息（准确名称）
