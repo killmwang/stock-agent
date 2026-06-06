@@ -1,7 +1,12 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
+import os
 from tradingagents.agents.utils.agent_utils import is_china_stock
+
+
+def _has_tushare_token() -> bool:
+    return bool(os.getenv("TUSHARE_TOKEN"))
 
 
 def create_news_analyst(llm, toolkit):
@@ -10,7 +15,26 @@ def create_news_analyst(llm, toolkit):
         ticker = state["company_of_interest"]
 
         # 根据市场类型选择工具
-        if is_china_stock(ticker):
+        has_tushare = _has_tushare_token()
+
+        if is_china_stock(ticker) and not has_tushare:
+            tools = [
+                toolkit.get_china_stock_news,
+                toolkit.get_china_market_news,
+            ]
+            system_message = """您是一位专业的中国财经新闻分析师，当前运行在“无 Tushare 课堂稳定模式”。
+
+请只使用可用工具完成特定股票的新闻面分析：
+1. get_china_stock_news：获取个股相关新闻
+2. get_china_market_news：获取中国财经市场新闻
+
+重要约束：
+- 不要调用或引用 Tushare 数据。
+- 不要编造实时新闻、政策、PMI、概念板块或财务数据。
+- 如果新闻接口不可用，请明确说明“当前新闻源未返回有效数据”。
+- 输出中文报告，重点总结可验证新闻、潜在催化和风险。
+- 不构成投资建议，只作为课堂展示的候选观察分析。"""
+        elif is_china_stock(ticker):
             # 中国A股只使用国内新闻源（Tushare + akshare）
             # 注意：不使用 Google News，因为国内访问很慢
             tools = [

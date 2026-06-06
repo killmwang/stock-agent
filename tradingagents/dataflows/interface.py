@@ -757,8 +757,28 @@ def _extract_text_from_responses_api(response):
     return ""
 
 
+def _is_deepseek_backend(config):
+    backend_url = config.get("backend_url") or ""
+    return "deepseek" in backend_url.lower()
+
+
+def _deepseek_web_search_unavailable(scope, curr_date):
+    return (
+        f"## {scope} 信息提示 ({curr_date})\n\n"
+        "当前项目使用 DeepSeek 的 OpenAI 兼容 Chat Completions 接口运行。"
+        "DeepSeek 兼容接口不支持 OpenAI Responses API 的 `web_search_preview` 工具，"
+        "因此本节点不会抓取实时网页新闻，也不会编造新闻事实。\n\n"
+        "请将本部分视为实时新闻缺失提示，并结合行情、技术指标、财务数据、公告或其他"
+        "已接入数据源进行判断。若需要实时新闻/搜索能力，可以改接支持搜索工具的模型接口，"
+        "或单独接入新闻/RSS/搜索 API。"
+    )
+
+
 def get_stock_news_openai(ticker, curr_date):
     config = get_config()
+    if _is_deepseek_backend(config):
+        return _deepseek_web_search_unavailable(f"{ticker} 股票新闻", curr_date)
+
     client = OpenAI(base_url=config["backend_url"])
 
     response = client.responses.create(
@@ -794,6 +814,9 @@ def get_stock_news_openai(ticker, curr_date):
 
 def get_global_news_openai(curr_date):
     config = get_config()
+    if _is_deepseek_backend(config):
+        return _deepseek_web_search_unavailable("全球宏观新闻", curr_date)
+
     client = OpenAI(base_url=config["backend_url"])
 
     response = client.responses.create(
@@ -829,6 +852,9 @@ def get_global_news_openai(curr_date):
 
 def get_fundamentals_openai(ticker, curr_date):
     config = get_config()
+    if _is_deepseek_backend(config):
+        return _deepseek_web_search_unavailable(f"{ticker} 基本面网页搜索", curr_date)
+
     client = OpenAI(base_url=config["backend_url"])
 
     response = client.responses.create(

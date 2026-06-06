@@ -12,6 +12,12 @@ eval_data/
 .venv/
 test_env/
 
+# 本地安装缓存和日志
+.npm-cache/
+.pip-cache/
+.pip-temp/
+*.log
+
 # Node.js
 node_modules/
 

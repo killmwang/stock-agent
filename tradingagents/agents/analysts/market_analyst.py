@@ -1,7 +1,12 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
+import os
 from tradingagents.agents.utils.agent_utils import is_china_stock
+
+
+def _has_tushare_token() -> bool:
+    return bool(os.getenv("TUSHARE_TOKEN"))
 
 
 def create_market_analyst(llm, toolkit):
@@ -12,7 +17,14 @@ def create_market_analyst(llm, toolkit):
         company_name = state["company_of_interest"]
 
         # 判断市场类型并选择相应的工具
-        if is_china_stock(ticker):
+        has_tushare = _has_tushare_token()
+
+        if is_china_stock(ticker) and not has_tushare:
+            tools = [
+                toolkit.get_china_stock_data,
+                toolkit.get_china_market_overview,
+            ]
+        elif is_china_stock(ticker):
             # 中国A股使用通达信API + Tushare估值数据 + 板块联动 + 商品期货
             tools = [
                 toolkit.get_tushare_stock_basic,   # 首先获取股票基本信息（准确名称+行业）
@@ -32,7 +44,20 @@ def create_market_analyst(llm, toolkit):
             tools = []
 
         # 根据市场类型选择合适的系统提示词
-        if is_china_stock(ticker):
+        if is_china_stock(ticker) and not has_tushare:
+            system_message = """您是一位专业的中国A股市场分析师，当前运行在“无 Tushare 课堂稳定模式”。
+
+请只使用可用工具完成特定股票的技术面和市场环境分析：
+1. get_china_stock_data：获取A股行情、K线和技术指标
+2. get_china_market_overview：获取市场概览
+
+重要约束：
+- 不要调用或引用 Tushare 数据。
+- 不要编造 PE、PB、市值、股东、资金流等未获取到的数据。
+- 如果估值、财务或资金面数据缺失，请明确写“当前未接入该数据源”。
+- 输出中文报告，重点分析趋势、均线、成交量、支撑压力和风险。
+- 不构成投资建议，只作为课堂展示的候选观察分析。"""
+        elif is_china_stock(ticker):
             system_message = """您是一位专业的中国A股市场分析师，同时具备交易员视角，负责分析股票的技术面、估值水平和交易结构。
 
 ═══════════════════════════════════════════════════════════════

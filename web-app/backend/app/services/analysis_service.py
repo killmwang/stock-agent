@@ -7,6 +7,7 @@ import uuid
 import threading
 import logging
 import json
+import os
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List
@@ -214,14 +215,26 @@ class AnalysisService:
             data_logger = ToolDataLogger(tool_data_csv, ticker_for_path)
 
             config = DEFAULT_CONFIG.copy()
-            # Docker 环境下使用挂载的 named volume 路径
-            config["chroma_db_path"] = "/app/chroma_db"
+            # Docker 环境下使用挂载的 named volume；本地/普通服务器优先使用 .env 或默认配置。
+            if os.path.exists("/app"):
+                config["chroma_db_path"] = "/app/chroma_db"
+
+            if not os.getenv("TUSHARE_TOKEN"):
+                selected_analysts = ["market"]
+                config["deep_think_llm"] = config.get("quick_think_llm", "deepseek-chat")
+                config["max_tokens"] = 2000
+                self._add_log(
+                    task_id,
+                    "未配置 TUSHARE_TOKEN，启用课堂稳定模式：仅运行市场分析师，并使用快速模型生成后续结论。"
+                )
+            else:
+                selected_analysts = ["market", "social", "news", "fundamentals"]
 
             # 创建 Graph
             self._add_log(task_id, "初始化分析系统...")
             trading_graph = TradingAgentsGraph(
                 config=config,
-                selected_analysts=["market", "social", "news", "fundamentals"]
+                selected_analysts=selected_analysts
             )
 
             # 使用流式模式运行，跟踪每个节点的进度

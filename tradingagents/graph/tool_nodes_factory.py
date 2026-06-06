@@ -12,11 +12,17 @@ Tool Nodes Factory Module
 """
 
 import logging
+import os
 from typing import Dict, Any
 
 from langgraph.prebuilt import ToolNode
 
 logger = logging.getLogger(__name__)
+
+
+def _has_tushare_token() -> bool:
+    """Return True when Tushare tools can be used."""
+    return bool(os.getenv("TUSHARE_TOKEN"))
 
 
 def create_tool_nodes(toolkit) -> Dict[str, ToolNode]:
@@ -44,6 +50,14 @@ def _create_market_tools(toolkit) -> ToolNode:
 
     职责: 技术面分析（K线、量价、技术指标）
     """
+    if not _has_tushare_token():
+        return ToolNode([
+            toolkit.get_china_stock_data,
+            toolkit.get_china_market_overview,
+            toolkit.get_YFin_data_online,
+            toolkit.get_stockstats_indicators_report_online,
+        ])
+
     return ToolNode([
         # 中国A股工具 - 通达信API
         toolkit.get_china_stock_data,
@@ -74,6 +88,14 @@ def _create_social_tools(toolkit) -> ToolNode:
 
     职责: 资金面分析（主力流向、北向资金、融资融券、筹码结构）
     """
+    if not _has_tushare_token():
+        return ToolNode([
+            toolkit.get_china_stock_sentiment,
+            toolkit.get_china_money_flow,
+            toolkit.get_stock_news_openai,
+            toolkit.get_reddit_stock_info,
+        ])
+
     return ToolNode([
         # 中国A股基本信息 - Tushare Pro（股票名称）
         toolkit.get_tushare_stock_basic,
@@ -105,6 +127,14 @@ def _create_news_tools(toolkit) -> ToolNode:
 
     职责: 新闻面分析（公司新闻、行业动态、宏观经济）
     """
+    if not _has_tushare_token():
+        return ToolNode([
+            toolkit.get_china_stock_news,
+            toolkit.get_china_market_news,
+            toolkit.get_global_news_openai,
+            toolkit.get_google_news,
+        ])
+
     return ToolNode([
         # 中国A股基本信息 - Tushare Pro（股票名称）
         toolkit.get_tushare_stock_basic,
@@ -131,6 +161,14 @@ def _create_fundamentals_tools(toolkit) -> ToolNode:
 
     职责: 基本面分析（财务报表、指标分析、业绩预告）
     """
+    if not _has_tushare_token():
+        return ToolNode([
+            toolkit.get_china_financial_report,
+            toolkit.get_china_stock_indicators,
+            toolkit.get_china_earnings_forecast,
+            toolkit.get_fundamentals_openai,
+        ])
+
     return ToolNode([
         # 中国A股基本面工具 - Tushare Pro（高质量数据，优先使用）
         toolkit.get_tushare_financial_statements,      # 财务三表（利润表/资产负债表/现金流）
@@ -164,6 +202,14 @@ def _create_china_market_tools(toolkit) -> ToolNode:
 
     职责: 制度面分析（市场风格、政策环境、板块轮动）
     """
+    if not _has_tushare_token():
+        return ToolNode([
+            toolkit.get_china_stock_data,
+            toolkit.get_china_market_overview,
+            toolkit.get_YFin_data_online,
+            toolkit.get_stockstats_indicators_report_online,
+        ])
+
     return ToolNode([
         # 中国A股数据 - 通达信API（行情数据）
         toolkit.get_china_stock_data,

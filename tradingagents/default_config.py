@@ -111,7 +111,10 @@ def get_validated_config(config: Optional[Dict[str, Any]] = None) -> Dict[str, A
 DEFAULT_CONFIG = {
     "project_dir": os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
     "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", "./results"),
-    "data_dir": os.path.join(os.path.expanduser("~"), "Documents", "TradingAgents", "data"),
+    "data_dir": os.getenv(
+        "TRADINGAGENTS_DATA_DIR",
+        os.path.join(os.path.expanduser("~"), "Documents", "TradingAgents", "data")
+    ),
     "data_cache_dir": os.path.join(
         os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
         "dataflows/data_cache",
@@ -136,11 +139,14 @@ DEFAULT_CONFIG = {
     "tushare_token": os.getenv("TUSHARE_TOKEN", ""),
 
     # ChromaDB 持久化存储路径（用于 Memory 模块）
-    "chroma_db_path": os.path.join(
-        os.path.expanduser("~"),
-        "Documents",
-        "TradingAgents",
-        "chroma_db"
+    "chroma_db_path": os.getenv(
+        "TRADINGAGENTS_CHROMA_DB_PATH",
+        os.path.join(
+            os.path.expanduser("~"),
+            "Documents",
+            "TradingAgents",
+            "chroma_db"
+        )
     ),
 
     # Note: Database and cache configuration is now managed by .env file and config.database_manager

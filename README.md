@@ -1,182 +1,162 @@
-# TradingAgents-Chinese
+# AStock 智能选股 Agent 课堂演示版
 
-基于 [TradingAgents](https://github.com/TauricResearch/TradingAgents) 的中国A股多智能体交易分析框架。
+这是一个面向课堂展示和项目讲解的 A 股智能选股 Agent。项目基于开源多 Agent 股票分析框架改造，保留“前端页面 + 后端服务 + LangGraph 多 Agent 编排 + 行情/新闻工具调用”的完整链路，同时加入了更适合演示的稳定模式。
 
-## 项目简介
+本项目不做实盘交易，不连接券商接口，不构成投资建议。
 
-TradingAgents-Chinese 是一个专为中国A股市场优化的多智能体 LLM 交易分析框架。系统模拟真实交易机构的运作模式，部署多个专业化的 AI 代理协同分析市场，包括基本面分析师、情绪分析师、技术分析师、交易员和风险管理团队。
+## 我们改造了什么
 
-### 核心特性
+- 接入 DeepSeek 兼容 OpenAI SDK 的调用方式。
+- 没有 Tushare Token 时，自动进入课堂稳定模式。
+- 无 Tushare 时优先运行市场分析 Agent，避免因为缺少高权限数据接口导致整条流程失败。
+- DeepSeek 不支持 OpenAI Responses 网页搜索接口时，不编造新闻和基本面数据，而是给出明确说明。
+- 本地数据、缓存、ChromaDB 路径支持通过环境变量配置，方便放在 D 盘或云服务器目录。
+- 增加本地演示访问码，方便课堂快速进入页面。
 
-- **中国A股数据源**: 集成 AKShare、TuShare Pro、通达信 API
-- **多 LLM 提供商支持**: OpenAI、Anthropic、阿里云通义千问、Ollama 本地部署
-- **决策记忆系统**: 基于 ChromaDB 的历史决策追踪与反思
-- **实时行情**: 支持盘中实时数据获取和分析
-- **智能缓存**: MongoDB + Redis + 文件三级缓存架构
+## 技术栈
 
-## 系统架构
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      分析师团队                              │
-├───────────────┬───────────────┬───────────────┬─────────────┤
-│  基本面分析师  │   情绪分析师   │   新闻分析师   │  技术分析师  │
-│  (财务/估值)   │  (社交媒体)    │   (宏观事件)   │  (MACD/RSI) │
-└───────┬───────┴───────┬───────┴───────┬───────┴──────┬──────┘
-        │               │               │              │
-        └───────────────┼───────────────┴──────────────┘
-                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      研究员团队                              │
-│              ┌─────────────┬─────────────┐                  │
-│              │   多头研究员  │   空头研究员  │                  │
-│              └──────┬──────┴──────┬──────┘                  │
-│                     │   辩论协商   │                         │
-│                     └──────┬──────┘                         │
-└────────────────────────────┼────────────────────────────────┘
-                             ▼
-┌─────────────────────────────────────────────────────────────┐
-│                       交易员                                 │
-│              综合报告 → 交易计划制定                          │
-└────────────────────────────┼────────────────────────────────┘
-                             ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    风险管理团队                               │
-│    ┌──────────┬──────────┬──────────┐                       │
-│    │ 激进分析师 │ 中性分析师 │ 保守分析师 │                       │
-│    └────┬─────┴────┬─────┴────┬─────┘                       │
-│         │    三方辩论    │         │                         │
-│         └────────┬───────┘         │                         │
-│                  ▼                                           │
-│           风险评估裁决 → 最终决策                              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## 快速开始
-
-### 1. 环境配置
-
-```bash
-# 克隆仓库
-git clone https://github.com/your-repo/TradingAgents-Chinese.git
-cd TradingAgents-Chinese
-
-# 创建虚拟环境
-conda create -n tradingagents python=3.11
-conda activate tradingagents
-
-# 安装依赖
-pip install -r requirements.txt
-```
-
-### 2. 配置 API 密钥
-
-复制环境变量模板并填写你的 API 密钥：
-
-```bash
-cp .env.example .env
-```
-
-编辑 `.env` 文件：
-
-```bash
-# LLM API（至少配置一个）
-OPENAI_API_KEY=your_openai_key
-DASHSCOPE_API_KEY=your_dashscope_key  # 阿里云通义千问
-
-# 数据源（推荐配置 TuShare）
-TUSHARE_TOKEN=your_tushare_token
-FINNHUB_API_KEY=your_finnhub_key  # 可选，用于美股
-```
-
-### 3. 运行 CLI
-
-```bash
-python -m cli.main
-```
-
-## 使用方式
-
-### CLI 交互界面
-
-CLI 提供完整的交互式分析界面：
-
-1. 输入股票代码（如 `600036` 或 `000001`）
-2. 选择分析日期
-3. 选择 LLM 提供商和模型
-4. 查看实时分析进度和最终决策
-
-### Python API
-
-```python
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
-
-# 初始化
-config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "dashscope"  # 使用通义千问
-config["deep_think_llm"] = "qwen-max"
-config["quick_think_llm"] = "qwen-plus"
-
-ta = TradingAgentsGraph(debug=True, config=config)
-
-# 分析股票
-_, decision = ta.propagate("600036", "2025-01-10")
-print(decision)
-```
-
-### 配置选项
-
-| 配置项 | 说明 | 默认值 |
-|--------|------|--------|
-| `llm_provider` | LLM 提供商 | `openai` |
-| `deep_think_llm` | 深度思考模型 | `gpt-4o` |
-| `quick_think_llm` | 快速思考模型 | `gpt-4o-mini` |
-| `max_debate_rounds` | 辩论轮数 | `1` |
-| `online_tools` | 使用在线数据 | `True` |
-
-## 数据源
-
-| 数据源 | 用途 | 免费额度 |
-|--------|------|----------|
-| AKShare | A股行情、新闻、情绪 | 无限制 |
-| TuShare Pro | 财务数据、研报 | 每日 500 次 |
-| 通达信 | 实时行情 | 无限制 |
-| FinnHub | 美股数据 | 每分钟 60 次 |
+- Python 3.10
+- FastAPI
+- React + Vite
+- LangGraph
+- LangChain
+- pandas / numpy
+- AKShare / 其他数据工具
+- DeepSeek API
+- Nginx，可选，用于云服务器部署
 
 ## 项目结构
 
-```
-TradingAgents-Chinese/
-├── cli/                    # 命令行界面
-├── tradingagents/
-│   ├── agents/            # AI 代理实现
-│   │   ├── analysts/      # 分析师（基本面、情绪、新闻、技术）
-│   │   ├── researchers/   # 研究员（多头、空头）
-│   │   ├── managers/      # 管理者（风险、研究）
-│   │   └── utils/         # 工具（记忆系统）
-│   ├── dataflows/         # 数据获取层
-│   │   ├── akshare_utils.py
-│   │   ├── tushare_utils.py
-│   │   └── tdx_utils.py
-│   ├── graph/             # LangGraph 工作流
-│   └── llm_adapters/      # LLM 适配器
-├── web-app/               # Web 界面（开发中）
-└── requirements.txt
+```text
+AStock-AI-Agent/
+  tradingagents/          # 多 Agent 核心逻辑
+    agents/               # 分析师、研究员、交易员、风控等角色
+    graph/                # LangGraph 工作流编排
+    dataflows/            # 行情、新闻、基本面等工具
+  web-app/
+    frontend/             # React 前端页面
+    backend/              # FastAPI 后端服务
+  docs/                   # 文档
+  config/                 # 配置文件
+  .env.example            # 环境变量模板
 ```
 
-## 注意事项
+## 本地启动
 
-- 本框架仅供研究和学习使用
-- 交易决策受多种因素影响，包括 LLM 选择、数据质量等
-- **不构成任何投资建议**
+### 1. 创建环境
 
-## 致谢
+```bash
+cd D:\llm_lab\AStock-AI-Agent
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+pip install -r web-app\backend\requirements.txt
+```
 
-- [TradingAgents](https://github.com/TauricResearch/TradingAgents) - 原始框架
-- [AKShare](https://github.com/akfamily/akshare) - A股数据源
-- [TuShare](https://tushare.pro/) - 金融数据接口
+### 2. 配置环境变量
 
-## License
+复制模板：
 
-MIT License
+```bash
+copy .env.example .env
+```
+
+课堂演示建议至少填写：
+
+```env
+DEEPSEEK_API_KEY=你的 DeepSeek API Key
+OPENAI_API_KEY=你的 DeepSeek API Key
+OPENAI_BASE_URL=https://api.deepseek.com
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+JWT_SECRET=change-this-secret
+```
+
+如果没有 `TUSHARE_TOKEN`，系统会进入课堂稳定模式，只跑更稳的市场分析链路。
+
+### 3. 启动后端
+
+```bash
+cd D:\llm_lab\AStock-AI-Agent
+.\.venv\Scripts\activate
+cd web-app\backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+### 4. 启动前端
+
+另开一个终端：
+
+```bash
+cd D:\llm_lab\AStock-AI-Agent\web-app\frontend
+npm install
+npm run dev
+```
+
+访问：
+
+```text
+http://127.0.0.1:3000
+```
+
+本地演示访问码：
+
+```text
+demo123456
+```
+
+## Agent 流程怎么讲
+
+这个项目可以这样理解：
+
+```mermaid
+flowchart LR
+  U["用户输入股票代码和日期"] --> F["React 前端"]
+  F --> B["FastAPI 后端"]
+  B --> G["LangGraph 工作流"]
+  G --> M["市场分析 Agent"]
+  G --> N["新闻/情绪/基本面 Agent"]
+  M --> R["研究员辩论与交易员决策"]
+  N --> R
+  R --> K["风控 Agent"]
+  K --> O["综合报告"]
+  O --> F
+```
+
+前端负责收集输入和展示结果；后端负责接收请求、管理任务；LangGraph 负责把多个 Agent 节点按顺序组织起来；每个 Agent 本质上是“提示词 + LLM + 工具调用 + 状态读写”。
+
+## 原项目有多少 Agent
+
+默认完整链路里有 13 个核心角色：
+
+- Market Analyst，市场分析师
+- Social Analyst，社交情绪分析师
+- News Analyst，新闻分析师
+- Fundamentals Analyst，基本面分析师
+- Bull Researcher，多头研究员
+- Bear Researcher，空头研究员
+- Research Manager，研究经理
+- Trader，交易员
+- Risky Analyst，激进风控分析师
+- Neutral Analyst，中性风控分析师
+- Safe Analyst，保守风控分析师
+- Risk Judge，风控裁判
+- Consolidation Report，综合报告节点
+
+课堂稳定模式会减少对外部高权限数据接口的依赖，优先保证流程能跑通、能讲清楚。
+
+## 云服务器部署
+
+见 [docs/deployment_tencent_cloud.md](docs/deployment_tencent_cloud.md)。
+
+## 课堂展示建议
+
+1. 先说明这是一个教学演示系统，不是实盘交易系统。
+2. 展示前端输入股票代码和日期。
+3. 解释前端请求进入 FastAPI 后端。
+4. 展示 LangGraph 如何把多个 Agent 串起来。
+5. 展示分析进度、报告和风险提示。
+6. 说明确定性数据和 LLM 解释的边界：行情数据由工具获取，LLM 负责整理、推理和生成报告。
+
+## 风险声明
+
+本项目仅用于课程学习、Agent 架构展示和工程实践，不提供任何投资建议。系统输出中的“观察标的”“候选股票”“策略分析”等内容不应被理解为买入、卖出或持有建议。真实投资需要结合个人风险承受能力，并咨询持牌专业人士。
