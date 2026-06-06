@@ -2,11 +2,7 @@
  * API 客户端配置
  */
 import axios from 'axios';
-
-// 生产环境使用相对路径（通过 nginx 代理），开发环境使用 localhost
-const API_BASE_URL = import.meta.env.VITE_API_URL === ''
-  ? ''  // 空字符串 = 使用相对路径，nginx 会代理 /api 到后端
-  : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
+import { API_BASE_URL } from './config';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

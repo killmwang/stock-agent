@@ -5,12 +5,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { API_BASE_URL } from '../../api/config';
 import './ChatPage.css';
-
-// 生产环境使用相对路径（通过 nginx 代理）
-const API_URL = import.meta.env.VITE_API_URL === ''
-  ? ''
-  : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
 
 // 获取 token
 const getToken = () => localStorage.getItem('token');
@@ -74,7 +70,7 @@ export const ChatPage: React.FC = () => {
 
     try {
       // 使用 SSE 流式请求
-      const response = await fetch(`${API_URL}/api/chat/stream`, {
+      const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

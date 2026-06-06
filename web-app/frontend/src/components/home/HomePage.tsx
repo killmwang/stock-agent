@@ -6,11 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { analysisApi } from '../../api/client';
 import type { HistoryItem } from '../../api/client';
+import { API_BASE_URL } from '../../api/config';
 import './HomePage.css';
-
-const API_URL = import.meta.env.VITE_API_URL === ''
-  ? ''
-  : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
 
 interface ChangelogItem {
   version: string;
@@ -41,7 +38,7 @@ export const HomePage: React.FC = () => {
 
   // 加载更新日志
   useEffect(() => {
-    fetch(`${API_URL}/api/changelog`)
+    fetch(`${API_BASE_URL}/api/changelog`)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
