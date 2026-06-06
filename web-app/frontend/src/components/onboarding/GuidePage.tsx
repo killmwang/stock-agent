@@ -28,7 +28,7 @@ interface DemoStep {
   tags: string[];
 }
 
-// 演示步骤数据 - 展示11位AI专家的工作流程
+// 演示步骤数据 - 展示多 Agent 选股流程
 const DEMO_STEPS: DemoStep[] = [
   {
     title: '数据采集',
@@ -45,8 +45,8 @@ const DEMO_STEPS: DemoStep[] = [
     title: '多空研判',
     subtitle: '研究团队辩论会',
     teamMembers: [
-      { icon: '🐂', role: '多头研究员', action: '发现3个看涨信号', color: 'green' },
-      { icon: '🐻', role: '空头研究员', action: '提出2个风险点', color: 'red' },
+      { icon: '多', role: '多头研究员', action: '整理积极信号', color: 'green' },
+      { icon: '空', role: '空头研究员', action: '提出主要风险点', color: 'red' },
       { icon: '👔', role: '研究主管', action: '综合评估: 偏多', highlight: true },
     ],
     tags: ['多头观点', '空头观点', '辩证分析']
@@ -55,12 +55,12 @@ const DEMO_STEPS: DemoStep[] = [
     title: '风控决策',
     subtitle: '风险管理决策',
     teamMembers: [
-      { icon: '🔥', role: '激进派', action: '建议: 加仓买入', color: 'orange' },
-      { icon: '⚖️', role: '稳健派', action: '建议: 分批建仓', color: 'blue' },
-      { icon: '🛡️', role: '保守派', action: '建议: 观望等待', color: 'gray' },
+      { icon: '进', role: '进取风控', action: '评估观察价值', color: 'orange' },
+      { icon: '稳', role: '稳健风控', action: '检查风险阈值', color: 'blue' },
+      { icon: '守', role: '保守风控', action: '给出风险提示', color: 'gray' },
     ],
-    finalDecision: { signal: 'BUY', confidence: 78 },
-    tags: ['仓位建议', '风险评估', '投资决策']
+    finalDecision: { signal: 'HOLD', confidence: 78 },
+    tags: ['候选池', '风险评估', '策略结论']
   }
 ];
 
@@ -137,7 +137,7 @@ export const GuidePage: React.FC = () => {
         <div className="decision-divider"></div>
         <div className="decision-content">
           <span className="decision-icon">🎯</span>
-          <span className="decision-label">最终决策</span>
+          <span className="decision-label">筛选结论</span>
           <span className={`signal-badge ${signalClass}`}>{signal}</span>
           <div className="confidence-wrapper">
             <span className="confidence-label">置信度</span>
@@ -157,8 +157,8 @@ export const GuidePage: React.FC = () => {
   return (
     <div className="guide-page-v2">
       <div className="guide-container-v2">
-        <h1>欢迎使用 智能投资助手</h1>
-        <p className="subtitle">11位AI专家为您服务</p>
+        <h1>欢迎使用 智能选股 Agent</h1>
+        <p className="subtitle">多 Agent 协作完成筛选流程</p>
 
         {/* 演示区域 */}
         <div className="demo-area">

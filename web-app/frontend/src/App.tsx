@@ -1,5 +1,5 @@
 /**
- * TradingAgents Web App - 主入口
+ * 智能选股 Agent Web App - 主入口
  */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -12,7 +12,6 @@ import { HomePage } from './components/home/HomePage';
 import { ChatPage } from './components/chat/ChatPage';
 import { AnalysisPage } from './components/analysis/AnalysisPage';
 import { HistoryPage } from './components/history/HistoryPage';
-import { TrendRadarPage } from './components/trendradar/TrendRadarPage';
 // Admin components
 import { AdminLoginPage } from './components/admin/AdminLoginPage';
 import { AdminLayout } from './components/admin/AdminLayout';
@@ -88,15 +87,6 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/trendradar"
-              element={
-                <ProtectedRoute>
-                  <TrendRadarPage />
-                </ProtectedRoute>
-              }
-            />
-
             {/* 管理后台路由 */}
             <Route path="/admin/login" element={<AdminLoginPage />} />
             <Route

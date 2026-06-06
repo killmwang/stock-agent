@@ -1,5 +1,5 @@
 """
-TradingAgents Web Backend
+智能选股 Agent Web Backend
 
 FastAPI 后端服务，提供：
 - 认证 API (Access Code 验证)

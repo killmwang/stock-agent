@@ -1,5 +1,5 @@
 """
-TradingAgents Web Backend - FastAPI 主入口
+智能选股 Agent Web Backend - FastAPI 主入口
 
 提供 REST API 服务：
 - /api/auth - 认证服务
@@ -26,22 +26,22 @@ if env_file.exists():
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, chat, analysis, admin, trendradar
+from app.routers import auth, chat, analysis, admin
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时
-    print("TradingAgents Web Backend 启动中...")
+    print("Stock Agent Web Backend 启动中...")
     yield
     # 关闭时
-    print("TradingAgents Web Backend 关闭中...")
+    print("Stock Agent Web Backend 关闭中...")
 
 
 app = FastAPI(
-    title="TradingAgents API",
-    description="股票分析助手 API 服务",
+    title="Stock Agent API",
+    description="智能选股 Agent API 服务",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -60,21 +60,19 @@ app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(chat.router, prefix="/api/chat", tags=["对话"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["分析"])
 app.include_router(admin.router, prefix="/api/admin", tags=["管理"])
-app.include_router(trendradar.router, prefix="/api/trendradar", tags=["热点监控"])
 
 
 @app.get("/")
 async def root():
     """API 根路径"""
     return {
-        "name": "TradingAgents API",
+        "name": "Stock Agent API",
         "version": "1.0.0",
         "endpoints": {
             "auth": "/api/auth",
             "chat": "/api/chat",
             "analysis": "/api/analysis",
-            "admin": "/api/admin",
-            "trendradar": "/api/trendradar"
+            "admin": "/api/admin"
         }
     }
 
@@ -83,18 +81,6 @@ async def root():
 async def health_check():
     """健康检查"""
     return {"status": "healthy"}
-
-
-@app.get("/api/changelog")
-async def get_changelog():
-    """获取更新日志（公开接口，无需认证）"""
-    import json
-    # changelog.json 放在 app/ 目录下，确保被 Docker 复制
-    changelog_file = Path(__file__).parent / "changelog.json"
-    if changelog_file.exists():
-        with open(changelog_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {"updates": []}
 
 
 if __name__ == "__main__":

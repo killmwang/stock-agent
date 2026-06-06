@@ -256,7 +256,7 @@ export const AnalysisPage: React.FC = () => {
           {/* 决策摘要 */}
           <div className="decision-card" style={getDecisionStyle(result.decision)}>
             <div className="decision-main">
-              <span className="decision-label">投资建议</span>
+              <span className="decision-label">策略结论</span>
               <span className="decision-value">{result.decision}</span>
             </div>
             {result.summary?.target_price && (
@@ -336,7 +336,7 @@ export const AnalysisPage: React.FC = () => {
         <button className="back-btn" onClick={() => navigate('/home')}>
           ←
         </button>
-        <h1>全面分析报告</h1>
+          <h1>多 Agent 选股分析</h1>
         <div />
       </header>
 
@@ -370,8 +370,8 @@ export const AnalysisPage: React.FC = () => {
           {/* 系统介绍 - 信息图表风格 */}
           <div className="infographic-intro">
             <div className="intro-header">
-              <h2>AI 投研团队协作分析</h2>
-              <p>模拟专业机构的多团队研究流程，输出综合投资建议</p>
+              <h2>AI 选股团队协作分析</h2>
+              <p>模拟多团队研究流程，输出候选股票观察报告</p>
             </div>
 
             {/* 上方分析节点 */}
@@ -393,8 +393,8 @@ export const AnalysisPage: React.FC = () => {
             {/* 中心决策圆环 */}
             <div className="center-decision">
               <span className="decision-icon">🎯</span>
-              <span className="decision-label">投资决策</span>
-              <span className="decision-output">BUY / SELL / HOLD</span>
+              <span className="decision-label">策略结论</span>
+              <span className="decision-output">观察 / 回避 / 持续跟踪</span>
             </div>
 
             {/* 下方分析节点 */}
@@ -404,7 +404,7 @@ export const AnalysisPage: React.FC = () => {
                 <span className="node-label">基本面</span>
               </div>
               <div className="analysis-node debate">
-                <span className="node-icon">🐂🐻</span>
+                <span className="node-icon">多空</span>
                 <span className="node-label">多空辩论</span>
               </div>
               <div className="analysis-node">

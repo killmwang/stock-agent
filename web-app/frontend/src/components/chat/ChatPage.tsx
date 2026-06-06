@@ -38,7 +38,7 @@ export const ChatPage: React.FC = () => {
     {
       role: 'assistant',
       content:
-        '您好！我是股票分析助手，可以帮您查询股票信息、分析估值、查看资金流向等。请问有什么可以帮您的？',
+        '您好！我是智能选股 Agent 助手，可以帮您查询股票信息、解释分析报告、梳理风险点。请问有什么可以帮您的？',
     },
   ]);
   const [input, setInput] = useState('');
@@ -154,7 +154,7 @@ export const ChatPage: React.FC = () => {
       {
         role: 'assistant',
         content:
-          '您好！我是股票分析助手，可以帮您查询股票信息、分析估值、查看资金流向等。请问有什么可以帮您的？',
+          '您好！我是智能选股 Agent 助手，可以帮您查询股票信息、解释分析报告、梳理风险点。请问有什么可以帮您的？',
       },
     ]);
     setConversationId(undefined);

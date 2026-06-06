@@ -1,4 +1,4 @@
-/* GitHub Dark 风格 - 开发者工具集首页 */
+/* 智能选股 Agent 登录页 */
 
 .dev-portal {
   min-height: 100vh;
@@ -41,35 +41,6 @@
   border-color: #58a6ff;
 }
 
-/* 微信二维码弹窗 */
-.wechat-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  animation: fadeIn 0.2s ease;
-}
-.wechat-content {
-  background: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 12px;
-  padding: 24px;
-  text-align: center;
-  position: relative;
-}
-.wechat-content img {
-  width: 200px;
-  height: 200px;
-  border-radius: 8px;
-}
-.wechat-content p {
-  margin: 12px 0 0;
-  color: #8b949e;
-  font-size: 14px;
-}
 .close-btn {
   position: absolute;
   top: 8px;
