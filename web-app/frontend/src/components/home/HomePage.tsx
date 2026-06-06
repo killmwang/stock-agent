@@ -71,6 +71,20 @@ export const HomePage: React.FC = () => {
           </div>
           <button className="mode-btn">进入问答</button>
         </div>
+
+        <div className="mode-card radar-mode" onClick={() => navigate('/market-radar')}>
+          <div className="mode-icon">热</div>
+          <div className="mode-info">
+            <h2>市场热点雷达</h2>
+            <p className="mode-desc">辅助观察舆情与市场关注点</p>
+            <ul className="mode-features">
+              <li>多平台热点聚合</li>
+              <li>关键词筛选</li>
+              <li>热点趋势辅助分析</li>
+            </ul>
+          </div>
+          <button className="mode-btn">查看热点</button>
+        </div>
       </main>
 
       <section className="history-section">

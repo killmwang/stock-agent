@@ -248,3 +248,186 @@ export const analysisApi = {
   },
 };
 
+// ============== Market Radar API ==============
+
+export interface Platform {
+  id: string;
+  name: string;
+}
+
+export interface HotItem {
+  rank: number;
+  title: string;
+  url: string;
+  mobile_url?: string;
+  hot?: string;
+}
+
+export interface PlatformData {
+  platform_id: string;
+  platform_name: string;
+  success: boolean;
+  error?: string;
+  items: HotItem[];
+  count: number;
+  cached?: boolean;
+}
+
+export interface AnalyzeRequest {
+  platform_ids?: string[];
+  keywords?: string[];
+  include_rss?: boolean;
+  max_news?: number;
+}
+
+export interface AIAnalysisResult {
+  success: boolean;
+  summary?: string;
+  keyword_analysis?: string;
+  sentiment?: string;
+  cross_platform?: string;
+  signals?: string;
+  conclusion?: string;
+  stats?: {
+    total_news: number;
+    analyzed_news: number;
+    hotlist_count: number;
+    rss_count: number;
+  };
+  error?: string;
+  from_cache?: boolean;
+}
+
+export interface RSSFeed {
+  id: string;
+  name: string;
+  url: string;
+  enabled: boolean;
+  max_age_days: number;
+  is_default: boolean;
+}
+
+export interface RSSItem {
+  feed_id: string;
+  feed_name: string;
+  title: string;
+  url: string;
+  summary?: string;
+  published?: string;
+}
+
+export const trendradarApi = {
+  // 获取平台列表
+  getPlatforms: async (): Promise<{ success: boolean; platforms: Platform[] }> => {
+    const response = await apiClient.get('/api/trendradar/platforms');
+    return response.data;
+  },
+
+  // 获取热榜数据
+  getHotlist: async (
+    platformIds?: string[],
+    refresh = false
+  ): Promise<{
+    success: boolean;
+    platforms: Record<string, PlatformData>;
+    summary: { total: number; success: number; failed: number };
+  }> => {
+    const params = new URLSearchParams();
+    if (platformIds && platformIds.length > 0) {
+      params.append('platforms', platformIds.join(','));
+    }
+    if (refresh) {
+      params.append('refresh', 'true');
+    }
+    const response = await apiClient.get(`/api/trendradar/hotlist?${params}`);
+    return response.data;
+  },
+
+  // 获取单个平台热榜
+  getSingleHotlist: async (
+    platformId: string,
+    refresh = false
+  ): Promise<PlatformData> => {
+    const params = refresh ? '?refresh=true' : '';
+    const response = await apiClient.get(`/api/trendradar/hotlist/${platformId}${params}`);
+    return response.data;
+  },
+
+  // 关键词相关
+  getKeywords: async (): Promise<{ success: boolean; keywords: string[] }> => {
+    const response = await apiClient.get('/api/trendradar/keywords');
+    return response.data;
+  },
+
+  setKeywords: async (keywords: string[]): Promise<{ success: boolean; keywords: string[] }> => {
+    const response = await apiClient.post('/api/trendradar/keywords', { keywords });
+    return response.data;
+  },
+
+  // 筛选热榜
+  filterHotlist: async (
+    platformIds?: string[],
+    keywords?: string[]
+  ): Promise<{
+    success: boolean;
+    platforms: Record<string, PlatformData>;
+    keywords_used?: string[];
+  }> => {
+    const response = await apiClient.post('/api/trendradar/filter', {
+      platform_ids: platformIds,
+      keywords,
+    });
+    return response.data;
+  },
+
+  // RSS 相关
+  getRSSFeeds: async (): Promise<{ success: boolean; feeds: RSSFeed[] }> => {
+    const response = await apiClient.get('/api/trendradar/rss/feeds');
+    return response.data;
+  },
+
+  getRSSItems: async (
+    feedIds?: string[]
+  ): Promise<{
+    success: boolean;
+    items: RSSItem[];
+    count: number;
+    errors?: Array<{ feed_id: string; error: string }>;
+  }> => {
+    const params = feedIds ? `?feeds=${feedIds.join(',')}` : '';
+    const response = await apiClient.get(`/api/trendradar/rss/items${params}`);
+    return response.data;
+  },
+
+  addRSSFeed: async (
+    feedId: string,
+    name: string,
+    url: string,
+    maxAgeDays = 3
+  ): Promise<{ success: boolean; feed?: { id: string; name: string; url: string }; error?: string }> => {
+    const response = await apiClient.post('/api/trendradar/rss/subscribe', {
+      feed_id: feedId,
+      name,
+      url,
+      max_age_days: maxAgeDays,
+    });
+    return response.data;
+  },
+
+  removeRSSFeed: async (feedId: string): Promise<{ success: boolean; error?: string }> => {
+    const response = await apiClient.delete(`/api/trendradar/rss/unsubscribe/${feedId}`);
+    return response.data;
+  },
+
+  // AI 分析
+  analyze: async (request: AnalyzeRequest): Promise<AIAnalysisResult> => {
+    const response = await apiClient.post('/api/trendradar/analyze', request);
+    return response.data;
+  },
+
+  // 清空缓存（管理员）
+  clearCache: async (): Promise<{ success: boolean; message: string }> => {
+    const response = await apiClient.post('/api/trendradar/cache/clear');
+    return response.data;
+  },
+};

@@ -5,6 +5,7 @@
 - /api/auth - 认证服务
 - /api/chat - 对话模式 (ChatbotGraph)
 - /api/analysis - 全面分析模式 (TradingAgentsGraph)
+- /api/trendradar - 市场热点雷达
 """
 import os
 import sys
@@ -26,7 +27,7 @@ if env_file.exists():
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, chat, analysis, admin
+from app.routers import auth, chat, analysis, admin, trendradar
 
 
 @asynccontextmanager
@@ -60,6 +61,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(chat.router, prefix="/api/chat", tags=["对话"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["分析"])
 app.include_router(admin.router, prefix="/api/admin", tags=["管理"])
+app.include_router(trendradar.router, prefix="/api/trendradar", tags=["市场热点雷达"])
 
 
 @app.get("/")
@@ -72,7 +74,8 @@ async def root():
             "auth": "/api/auth",
             "chat": "/api/chat",
             "analysis": "/api/analysis",
-            "admin": "/api/admin"
+            "admin": "/api/admin",
+            "market_radar": "/api/trendradar"
         }
     }
 

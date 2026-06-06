@@ -12,6 +12,7 @@ import { HomePage } from './components/home/HomePage';
 import { ChatPage } from './components/chat/ChatPage';
 import { AnalysisPage } from './components/analysis/AnalysisPage';
 import { HistoryPage } from './components/history/HistoryPage';
+import { TrendRadarPage } from './components/trendradar/TrendRadarPage';
 // Admin components
 import { AdminLoginPage } from './components/admin/AdminLoginPage';
 import { AdminLayout } from './components/admin/AdminLayout';
@@ -84,6 +85,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <HistoryPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/market-radar"
+              element={
+                <ProtectedRoute>
+                  <TrendRadarPage />
                 </ProtectedRoute>
               }
             />
