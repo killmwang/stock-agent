@@ -425,3 +425,41 @@
     gap: 32px;
   }
 }
+
+/* 智能选股 Agent 课堂版覆盖 */
+.header-badge {
+  color: #8b949e;
+  border: 1px solid #30363d;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.stock-agent-login-grid {
+  grid-template-columns: minmax(280px, 560px);
+  justify-content: center;
+  max-width: 960px;
+}
+
+.primary-tool {
+  min-height: 300px;
+}
+
+.stock-agent-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #238636;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (min-width: 1024px) {
+  .stock-agent-login-grid {
+    grid-template-columns: minmax(420px, 600px);
+  }
+}
