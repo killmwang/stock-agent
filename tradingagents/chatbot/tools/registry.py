@@ -6,9 +6,237 @@ Chatbot 工具注册表
 Phase 1: 5 个核心工具
 Phase 2: 扩展到 20+ 工具
 """
+import os
 from typing import List, Optional
 from langchain_core.tools import tool, BaseTool
 from typing import Annotated
+
+
+def _has_tushare_token() -> bool:
+    return bool(os.getenv("TUSHARE_TOKEN", "").strip())
+
+
+def _normalize_stock_code(stock_code: str) -> str:
+    return (stock_code or "").strip().upper().replace(".SH", "").replace(".SZ", "")
+
+
+def _eastmoney_secid(stock_code: str) -> str:
+    code = _normalize_stock_code(stock_code)
+    market = "1" if code.startswith(("5", "6", "9")) else "0"
+    return f"{market}.{code}"
+
+
+def _as_float(value):
+    if value in (None, "", "-", "--"):
+        return None
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+
+def _format_number(value, digits: int = 2) -> str:
+    num = _as_float(value)
+    if num is None:
+        return str(value) if value not in (None, "") else "暂无"
+    return f"{num:,.{digits}f}"
+
+
+def _format_big_money(value) -> str:
+    num = _as_float(value)
+    if num is None:
+        return str(value) if value not in (None, "") else "暂无"
+    if abs(num) >= 100000000:
+        return f"{num / 100000000:.2f}亿元"
+    if abs(num) >= 10000:
+        return f"{num / 10000:.2f}万元"
+    return f"{num:.2f}元"
+
+
+def _fetch_eastmoney_quote(stock_code: str) -> Optional[dict]:
+    """Fetch one-symbol A-share quote from Eastmoney with a short timeout."""
+    try:
+        import requests
+
+        response = requests.get(
+            "https://push2.eastmoney.com/api/qt/stock/get",
+            params={
+                "ut": "fa5fd1943c7b386f172d6893dbfba10b",
+                "fltt": "2",
+                "invt": "2",
+                "secid": _eastmoney_secid(stock_code),
+                "fields": ",".join([
+                    "f43",   # 最新价
+                    "f57",   # 代码
+                    "f58",   # 名称
+                    "f60",   # 昨收
+                    "f169",  # 涨跌额
+                    "f170",  # 涨跌幅
+                    "f47",   # 成交量
+                    "f48",   # 成交额
+                    "f46",   # 今开
+                    "f44",   # 最高
+                    "f45",   # 最低
+                    "f168",  # 换手率
+                    "f116",  # 总市值
+                    "f117",  # 流通市值
+                    "f162",  # 市盈率
+                    "f167",  # 市净率
+                ]),
+            },
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=8,
+        )
+        response.raise_for_status()
+        data = response.json().get("data") or {}
+        return data if data.get("f57") else None
+    except Exception:
+        return None
+
+
+def _fetch_sina_quote(stock_code: str) -> Optional[dict]:
+    """Fetch one-symbol A-share quote from Sina Finance with a short timeout."""
+    code = _normalize_stock_code(stock_code)
+    market = "sh" if code.startswith(("5", "6", "9")) else "sz"
+    try:
+        import requests
+
+        response = requests.get(
+            f"https://hq.sinajs.cn/list={market}{code}",
+            headers={"Referer": "https://finance.sina.com.cn", "User-Agent": "Mozilla/5.0"},
+            timeout=6,
+        )
+        response.raise_for_status()
+        text = response.content.decode("gbk", errors="ignore").strip()
+        if '="' not in text:
+            return None
+        payload = text.split('="', 1)[1].rsplit('"', 1)[0]
+        parts = payload.split(",")
+        if len(parts) < 32 or not parts[0]:
+            return None
+
+        open_price = _as_float(parts[1])
+        prev_close = _as_float(parts[2])
+        latest_price = _as_float(parts[3])
+        change = None
+        pct_change = None
+        if latest_price is not None and prev_close:
+            change = latest_price - prev_close
+            pct_change = change / prev_close * 100
+
+        return {
+            "source": "新浪财经实时行情",
+            "code": code,
+            "name": parts[0],
+            "open": open_price,
+            "prev_close": prev_close,
+            "price": latest_price,
+            "high": _as_float(parts[4]),
+            "low": _as_float(parts[5]),
+            "volume": _as_float(parts[8]),
+            "amount": _as_float(parts[9]),
+            "change": change,
+            "pct_change": pct_change,
+            "date": parts[30],
+            "time": parts[31],
+        }
+    except Exception:
+        return None
+
+
+def _akshare_basic_info(stock_code: str) -> str:
+    code = _normalize_stock_code(stock_code)
+    sina_quote = _fetch_sina_quote(code)
+    if sina_quote:
+        return f"""# {sina_quote.get('name') or code} ({code}) 行情信息
+
+数据来源: {sina_quote.get('source')}
+
+| 字段 | 数值 |
+|---|---:|
+| 行情时间 | {sina_quote.get('date', '暂无')} {sina_quote.get('time', '')} |
+| 最新价 | {_format_number(sina_quote.get('price'))} |
+| 涨跌额 | {_format_number(sina_quote.get('change'))} |
+| 涨跌幅 | {_format_number(sina_quote.get('pct_change'))}% |
+| 今开 | {_format_number(sina_quote.get('open'))} |
+| 最高 | {_format_number(sina_quote.get('high'))} |
+| 最低 | {_format_number(sina_quote.get('low'))} |
+| 昨收 | {_format_number(sina_quote.get('prev_close'))} |
+| 成交量 | {_format_number(sina_quote.get('volume'), 0)} 股 |
+| 成交额 | {_format_big_money(sina_quote.get('amount'))} |
+
+说明：非交易时段显示最近一个交易时点或最近收盘后的行情快照。
+"""
+
+    quote = _fetch_eastmoney_quote(code)
+    if not quote:
+        return f"未能通过公开行情源获取 {code} 的行情信息。可能是网络访问超时、接口临时不可用，或股票代码不存在。"
+
+    name = quote.get("f58") or code
+    return f"""# {name} ({code}) 行情信息
+
+数据来源: 东方财富公开行情接口
+
+| 字段 | 数值 |
+|---|---:|
+| 最新价 | {_format_number(quote.get('f43'))} |
+| 涨跌额 | {_format_number(quote.get('f169'))} |
+| 涨跌幅 | {_format_number(quote.get('f170'))}% |
+| 今开 | {_format_number(quote.get('f46'))} |
+| 最高 | {_format_number(quote.get('f44'))} |
+| 最低 | {_format_number(quote.get('f45'))} |
+| 昨收 | {_format_number(quote.get('f60'))} |
+| 成交量 | {_format_number(quote.get('f47'), 0)} 手 |
+| 成交额 | {_format_big_money(quote.get('f48'))} |
+| 换手率 | {_format_number(quote.get('f168'))}% |
+| 总市值 | {_format_big_money(quote.get('f116'))} |
+| 流通市值 | {_format_big_money(quote.get('f117'))} |
+
+说明：非交易时段显示最近一个交易时点或最近收盘后的行情快照。
+"""
+
+
+def _akshare_valuation(stock_code: str) -> str:
+    code = _normalize_stock_code(stock_code)
+    quote = _fetch_eastmoney_quote(code)
+    sina_quote = _fetch_sina_quote(code)
+    if not quote:
+        if not sina_quote:
+            return f"未能通过公开行情源获取 {code} 的估值与交易数据。可能是网络访问超时、接口临时不可用，或股票代码不存在。"
+        return f"""# {sina_quote.get('name') or code} ({code}) 交易指标
+
+数据来源: {sina_quote.get('source')}
+
+| 指标 | 数值 |
+|---|---:|
+| 行情时间 | {sina_quote.get('date', '暂无')} {sina_quote.get('time', '')} |
+| 最新价 | {_format_number(sina_quote.get('price'))} |
+| 涨跌幅 | {_format_number(sina_quote.get('pct_change'))}% |
+| 成交额 | {_format_big_money(sina_quote.get('amount'))} |
+| 市盈率 | 暂无 |
+| 市净率 | 暂无 |
+| 总市值 | 暂无 |
+| 流通市值 | 暂无 |
+
+说明：当前只拿到行情快照，估值字段需要东方财富或 Tushare 接口可用时补齐。
+"""
+
+    name = quote.get("f58") or code
+    return f"""# {name} ({code}) 估值与交易指标
+
+数据来源: 东方财富公开行情接口
+
+| 指标 | 数值 |
+|---|---:|
+| 最新价 | {_format_number(quote.get('f43'))} |
+| 涨跌幅 | {_format_number(quote.get('f170'))}% |
+| 换手率 | {_format_number(quote.get('f168'))}% |
+| 市盈率 | {_format_number(quote.get('f162'))} |
+| 市净率 | {_format_number(quote.get('f167'))} |
+| 总市值 | {_format_big_money(quote.get('f116'))} |
+| 流通市值 | {_format_big_money(quote.get('f117'))} |
+| 成交额 | {_format_big_money(quote.get('f48'))} |
+"""
 
 
 # ============================================================================
@@ -27,6 +255,8 @@ def get_stock_basic_info(
     - get_stock_basic_info("600036") -> 返回招商银行基本信息
     - get_stock_basic_info("000001") -> 返回平安银行基本信息
     """
+    if not _has_tushare_token():
+        return _akshare_basic_info(stock_code)
     from tradingagents.dataflows.tushare_utils import get_stock_basic_info as _get_stock_basic_info
     return _get_stock_basic_info(stock_code)
 
@@ -44,6 +274,8 @@ def get_stock_valuation(
     - get_stock_valuation("600036") -> 返回招商银行最近的估值指标
     - get_stock_valuation("600036", "20260110") -> 返回指定日期的估值指标
     """
+    if not _has_tushare_token():
+        return _akshare_valuation(stock_code)
     from tradingagents.dataflows.tushare_utils import get_daily_basic
     return get_daily_basic(stock_code, trade_date if trade_date else None)
 
@@ -59,6 +291,9 @@ def get_stock_moneyflow(
     示例：
     - get_stock_moneyflow("600036") -> 返回招商银行近10日资金流向
     """
+    if not _has_tushare_token():
+        from tradingagents.dataflows.akshare_utils import get_china_money_flow
+        return get_china_money_flow(_normalize_stock_code(stock_code))
     from tradingagents.dataflows.tushare_utils import get_moneyflow
     return get_moneyflow(stock_code)
 
@@ -75,6 +310,8 @@ def get_market_news(
     - get_market_news() -> 返回今天的新闻联播经济要点
     - get_market_news("20260110") -> 返回指定日期的新闻
     """
+    if not _has_tushare_token():
+        return "当前未配置 Tushare Token，聊天问答不抓取慢速市场新闻接口；可在页面的“市场热点雷达”查看实时热点，或在多 Agent 选股分析中使用新闻分析师生成新闻线索。"
     from tradingagents.dataflows.tushare_utils import get_cctv_news
     if date:
         date = date.replace("-", "")
