@@ -136,7 +136,9 @@ def create_llm_pair(config: Dict[str, Any]) -> Tuple[Any, Any]:
 def _create_openai_llm(config: Dict[str, Any], model_name: str, backend_url: str, llm_type: str):
     """创建 OpenAI LLM 实例"""
     # 检测是否是 DeepSeek
-    is_deepseek = backend_url and "deepseek" in backend_url.lower()
+    backend_url_lower = (backend_url or "").lower()
+    is_deepseek = "deepseek" in backend_url_lower
+    is_bailian_compatible = "dashscope" in backend_url_lower or "aliyuncs.com" in backend_url_lower
     is_reasoner = model_name and "reasoner" in model_name.lower()
 
     # 从 config 获取 max_tokens，默认 2000（平衡速度和能力）
@@ -160,6 +162,18 @@ def _create_openai_llm(config: Dict[str, Any], model_name: str, backend_url: str
 
         # DeepSeek Chat 使用标准 ChatOpenAI
         logger.info(f"检测到 DeepSeek API，使用 Chat Completions API: {model_name}, max_tokens={max_tokens}")
+        return ChatOpenAI(
+            model=model_name,
+            base_url=backend_url,
+            temperature=0.1,
+            max_tokens=max_tokens
+        )
+
+    if is_bailian_compatible:
+        logger.info(
+            "Detected Alibaba Bailian OpenAI-compatible endpoint, "
+            f"using Chat Completions API: {model_name}, max_tokens={max_tokens}"
+        )
         return ChatOpenAI(
             model=model_name,
             base_url=backend_url,

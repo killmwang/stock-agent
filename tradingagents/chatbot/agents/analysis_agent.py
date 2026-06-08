@@ -64,9 +64,18 @@ class AnalysisAgent(BaseAgent):
     def _create_llm(self):
         """创建大模型 LLM"""
         analysis_config = self.config.copy()
-        analysis_config["llm_provider"] = self.config.get("analysis_llm_provider", "openai")
-        analysis_config["llm_model"] = self.config.get("analysis_llm_model", "deepseek-chat")
-        return create_llm(analysis_config)
+        analysis_config["llm_provider"] = self.config.get(
+            "analysis_llm_provider",
+            self.config.get("llm_provider", "openai")
+        )
+        analysis_config["deep_think_llm"] = self.config.get(
+            "analysis_llm_model",
+            self.config.get(
+                "deep_think_llm",
+                self.config.get("quick_think_llm", "deepseek-chat")
+            )
+        )
+        return create_llm(analysis_config, llm_type="deep")
 
     def _get_system_prompt(self) -> str:
         """获取深度分析系统提示"""

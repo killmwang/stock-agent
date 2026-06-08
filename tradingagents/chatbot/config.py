@@ -6,9 +6,9 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 
 CHATBOT_CONFIG = {
-    # LLM 配置 (DeepSeek)
-    "default_model": "deepseek-chat",    # 默认使用小模型
-    "analysis_model": "deepseek-chat",   # 分析用大模型
+    # LLM config follows DEFAULT_CONFIG, so .env can switch providers/models.
+    "default_model": DEFAULT_CONFIG.get("quick_think_llm", "deepseek-chat"),
+    "analysis_model": DEFAULT_CONFIG.get("deep_think_llm", DEFAULT_CONFIG.get("quick_think_llm", "deepseek-chat")),
     "max_tokens": 2000,
 
     # Agent 配置

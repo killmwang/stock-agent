@@ -3,6 +3,15 @@ import warnings
 from typing import Dict, Any, List, Optional
 
 
+def _env_first(*names: str, default: str = "") -> str:
+    """Return the first non-empty environment variable from names."""
+    for name in names:
+        value = os.getenv(name)
+        if value:
+            return value
+    return default
+
+
 def validate_config(config: Dict[str, Any]) -> List[str]:
     """
     验证配置有效性
@@ -121,11 +130,11 @@ DEFAULT_CONFIG = {
     ),
     # LLM settings
     # Supported providers: "openai", "anthropic", "google", "dashscope", "ollama", "openrouter"
-    # For DashScope: set llm_provider="dashscope", deep_think_llm="qwen-plus", quick_think_llm="qwen-turbo"
-    "llm_provider": "openai",  # DeepSeek 使用 OpenAI 兼容接口
-    "deep_think_llm": "deepseek-reasoner",  # DeepSeek V3.2 思考模式（深度推理，输出32-64K）
-    "quick_think_llm": "deepseek-chat",      # DeepSeek V3.2 非思考模式（快速响应，输出4-8K）
-    "backend_url": "https://api.deepseek.com/v1",
+    # DeepSeek and Alibaba Cloud Bailian-hosted models work through OpenAI-compatible APIs.
+    "llm_provider": os.getenv("LLM_PROVIDER", "openai"),
+    "deep_think_llm": _env_first("DEEP_THINK_LLM", "DEEPSEEK_DEEP_MODEL", default="deepseek-reasoner"),
+    "quick_think_llm": _env_first("QUICK_THINK_LLM", "DEEPSEEK_QUICK_MODEL", default="deepseek-chat"),
+    "backend_url": _env_first("LLM_BACKEND_URL", "OPENAI_BASE_URL", default="https://api.deepseek.com/v1"),
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,

@@ -71,8 +71,14 @@ class QuickAgent(BaseAgent):
     def _create_llm(self):
         """创建小模型 LLM"""
         quick_config = self.config.copy()
-        quick_config["llm_provider"] = self.config.get("quick_llm_provider", "openai")
-        quick_config["quick_think_llm"] = self.config.get("quick_llm_model", "deepseek-chat")
+        quick_config["llm_provider"] = self.config.get(
+            "quick_llm_provider",
+            self.config.get("llm_provider", "openai")
+        )
+        quick_config["quick_think_llm"] = self.config.get(
+            "quick_llm_model",
+            self.config.get("quick_think_llm", "deepseek-chat")
+        )
         return create_llm(quick_config, llm_type="quick")
 
     def _get_system_prompt(self) -> str:

@@ -354,13 +354,31 @@ class TrendRadarService:
             max_news: 最大分析条数
             user_id: 用户 ID
         """
-        # 检查 API Key（支持多种配置方式）
-        api_key = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
+        # 检查 API Key（支持 OpenAI 兼容服务：DeepSeek、阿里云百炼托管模型等）
+        api_key = (
+            os.environ.get("AI_API_KEY")
+            or os.environ.get("OPENAI_API_KEY")
+            or os.environ.get("DEEPSEEK_API_KEY")
+            or os.environ.get("DASHSCOPE_API_KEY")
+            or ""
+        )
         if not api_key:
             return {
                 "success": False,
-                "error": "未配置 AI API Key，请在 .env 中设置 DEEPSEEK_API_KEY 或 OPENAI_API_KEY",
+                "error": "未配置 AI API Key，请在 .env 中设置 OPENAI_API_KEY、DASHSCOPE_API_KEY 或 DEEPSEEK_API_KEY",
             }
+
+        base_url = (
+            os.environ.get("TRENDRADAR_BASE_URL")
+            or os.environ.get("LLM_BACKEND_URL")
+            or os.environ.get("OPENAI_BASE_URL")
+            or "https://api.deepseek.com/v1"
+        )
+        model = (
+            os.environ.get("TRENDRADAR_MODEL")
+            or os.environ.get("QUICK_THINK_LLM")
+            or "deepseek-chat"
+        )
 
         # 获取热榜数据
         if keywords:
@@ -407,9 +425,16 @@ class TrendRadarService:
         # 准备 AI 输入
         news_content = self._prepare_news_content(news_items, rss_items, max_news)
 
-        # 调用 DeepSeek API
+        # 调用 OpenAI 兼容 API
         try:
-            result = await self._call_deepseek(api_key, news_content, len(news_items), len(rss_items))
+            result = await self._call_llm(
+                api_key,
+                base_url,
+                model,
+                news_content,
+                len(news_items),
+                len(rss_items),
+            )
             result["stats"] = {
                 "total_news": total_items,
                 "analyzed_news": min(total_items, max_news),
@@ -461,17 +486,19 @@ class TrendRadarService:
 
         return "\n".join(lines)
 
-    async def _call_deepseek(
+    async def _call_llm(
         self,
         api_key: str,
+        base_url: str,
+        model: str,
         news_content: str,
         hotlist_count: int,
         rss_count: int,
     ) -> Dict[str, Any]:
-        """调用 DeepSeek API"""
+        """调用 OpenAI 兼容 API"""
         import httpx
 
-        url = "https://api.deepseek.com/v1/chat/completions"
+        url = f"{base_url.rstrip('/')}/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -502,7 +529,7 @@ class TrendRadarService:
 ```"""
 
         payload = {
-            "model": "deepseek-chat",
+            "model": model,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
