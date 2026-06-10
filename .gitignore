@@ -33,6 +33,8 @@ results/
 
 # 临时测试文件
 test_*.py
+!tests/
+!tests/test_*.py
 
 # IDE
 .idea/

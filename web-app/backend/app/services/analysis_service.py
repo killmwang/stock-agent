@@ -8,6 +8,7 @@ import threading
 import logging
 import json
 import os
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List
@@ -701,6 +702,29 @@ class AnalysisService:
             return decision
 
         text = decision.strip().strip("【】[]()（）")
+        parts = [p.strip() for p in re.split(r"[/／]", text) if p.strip()]
+        if len(parts) > 1:
+            priority = {
+                "强烈卖出": 0,
+                "卖出": 1,
+                "减持": 2,
+                "观望": 3,
+                "持有": 4,
+                "买入": 5,
+                "强烈买入": 6,
+            }
+            normalized_parts = [
+                self._normalize_decision_text(part)
+                for part in parts
+                if part
+            ]
+            normalized_parts = [
+                part for part in normalized_parts
+                if part in priority
+            ]
+            if normalized_parts:
+                return min(normalized_parts, key=lambda item: priority[item])
+
         text_upper = text.upper().replace(" ", "_")
 
         if "强烈卖出" in text or text_upper == "STRONG_SELL":

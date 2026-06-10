@@ -22,6 +22,58 @@ from tradingagents.agents.utils.valuation_validator import (
 logger = logging.getLogger(__name__)
 
 
+RATING_PRIORITY = {
+    "强烈卖出": 0,
+    "卖出": 1,
+    "减持": 2,
+    "回避": 2,
+    "观望": 3,
+    "持有": 4,
+    "买入": 5,
+    "强烈买入": 6,
+}
+
+
+def _split_rating_parts(rating: str) -> List[str]:
+    return [p.strip() for p in re.split(r'[/／]', rating) if p.strip()]
+
+
+def _canonical_rating(rating: str) -> str:
+    text = rating.strip().strip("【】[]()（）")
+    text_upper = text.upper().replace(" ", "_")
+
+    if "强烈卖出" in text or text_upper == "STRONG_SELL":
+        return "强烈卖出"
+    if "强烈买入" in text or text_upper == "STRONG_BUY":
+        return "强烈买入"
+    if "卖出" in text or text_upper == "SELL":
+        return "卖出"
+    if "减持" in text or "回避" in text or text_upper in {"REDUCE", "AVOID"}:
+        return "减持"
+    if "观望" in text or text_upper == "WATCH":
+        return "观望"
+    if "持有" in text or text_upper == "HOLD":
+        return "持有"
+    if "买入" in text or text_upper == "BUY":
+        return "买入"
+    return ""
+
+
+def _normalize_rating_text(rating: str) -> str:
+    """Normalize a rating, using the more conservative side for mixed ratings."""
+    if not rating:
+        return ""
+
+    parts = _split_rating_parts(rating)
+    if len(parts) > 2:
+        return ""
+    candidates = [_canonical_rating(part) for part in (parts or [rating])]
+    candidates = [candidate for candidate in candidates if candidate]
+    if not candidates:
+        return rating.strip().strip("【】[]()（）")
+    return min(candidates, key=lambda item: RATING_PRIORITY.get(item, 99))
+
+
 def _extract_current_price(market_report: str) -> Optional[float]:
     """
     从市场报告中提取当前/收盘价格
@@ -68,13 +120,9 @@ def _extract_report_rating(report: str) -> str:
         if not match:
             continue
         rating = match.group(1).strip()
-        if '/' in rating or '／' in rating:
-            parts = [p.strip() for p in re.split(r'[/／]', rating) if p.strip()]
-            # Ignore template-like option lists, but keep concrete mixed ratings
-            # such as "持有/观望".
-            if len(parts) > 2:
-                continue
-        return rating
+        normalized = _normalize_rating_text(rating)
+        if normalized:
+            return normalized
     return ""
 
 
@@ -167,8 +215,19 @@ def _correct_quarter_eps_pe_target(
         if abs(stated_target - direct_target) / stated_target > 0.03:
             continue
 
-        context = report[max(0, match.start() - 180): match.start()]
+        context = report[max(0, match.start() - 220): min(len(report), match.end() + 80)]
         if re.search(r'TTM|ttm|年化|全年|年度|预测EPS|全年预测', context):
+            continue
+        has_eps_context = re.search(r'EPS|每股收益', context, re.IGNORECASE)
+        has_pe_context = re.search(r'PE|市盈率', context, re.IGNORECASE)
+        has_book_value_context = re.search(
+            r'市净率|每股净资产|BVPS|book\s*value',
+            context,
+            re.IGNORECASE,
+        )
+        if has_book_value_context and not (has_eps_context and has_pe_context):
+            continue
+        if not has_eps_context or not (has_pe_context or multiple >= 5):
             continue
 
         if stated_target / current_price >= 0.5:
@@ -261,6 +320,7 @@ def _insert_consistency_note(report: str, rating: str, reason: str) -> str:
 
 
 def _rating_to_signal(rating: str) -> str:
+    rating = _normalize_rating_text(rating)
     if "买入" in rating:
         return "BUY"
     if "卖出" in rating or "减持" in rating or "回避" in rating:
@@ -306,12 +366,12 @@ def _enforce_consolidation_consistency(
     elif current_price and target_price:
         downside = (current_price - target_price) / current_price
         if downside >= 0.10 and (
-            not rating or any(term in rating for term in ["持有", "观望", "买入"])
+            not rating or rating in {"持有", "观望", "买入", "强烈买入"}
         ):
             corrected_rating = "卖出"
             reason = f"目标价较现价低约{downside * 100:.1f}%"
         elif downside >= 0.03 and (
-            not rating or any(term in rating for term in ["持有", "观望", "买入"])
+            not rating or rating in {"持有", "观望", "买入", "强烈买入"}
         ):
             corrected_rating = "减持"
             reason = f"目标价较现价低约{downside * 100:.1f}%"
@@ -607,6 +667,8 @@ For report synthesis, valuation calculation, and risk-reward analysis:
 6. **评级-仓位一致**：若建议仓位为0%、清仓、回避或不建议入场，投资评级不得写为“持有”或“买入”，应写为“卖出/减持/观望”中最贴近的一项
 7. **目标价一致**：若主要目标价显著低于当前价，投资评级不得写为“买入/持有”，必须解释为减持或卖出逻辑
 8. **估值口径一致**：PE估值必须使用TTM EPS、全年预测EPS或年化EPS；使用季度EPS时必须先乘以4或说明年化方法，避免目标价低一个数量级
+9. **公式类型一致**：PE公式使用EPS，PB公式使用每股净资产/BVPS，股息率公式使用每股分红；不得把PB公式误写成PE公式，也不得把季度EPS直接套年度PE
+10. **数学自检**：输出前必须复算 目标价、较现价涨跌幅、潜在收益、潜在亏损、盈亏比；如任一结果与评级冲突，先修正评级或操作建议再输出
 '''
 
 
@@ -635,11 +697,9 @@ def _extract_decision_info(final_decision: str, consolidation_report: str) -> Di
     for pattern in rating_patterns:
         match = re.search(pattern, consolidation_report)
         if match:
-            rating_text = match.group(1).strip()
-            # 排除包含斜杠的选项列表（如"强烈买入/买入/持有"）
-            if '/' not in rating_text:
+            rating_text = _normalize_rating_text(match.group(1).strip())
+            if rating_text:
                 break
-            rating_text = ""
 
     # 2. 在提取的评级文本中判断决策类型（调整顺序：卖出优先）
     if rating_text:
@@ -656,6 +716,9 @@ def _extract_decision_info(final_decision: str, consolidation_report: str) -> Di
         elif "减持" in rating_text or "reduce" in rating_lower:
             info["decision_type"] = "REDUCE"
             info["confidence"] = 0.6
+        elif "观望" in rating_text or "watch" in rating_lower:
+            info["decision_type"] = "HOLD"
+            info["confidence"] = 0.5
         elif "买入" in rating_text or "buy" in rating_lower:
             info["decision_type"] = "BUY"
             info["confidence"] = 0.7
@@ -693,7 +756,7 @@ def _extract_decision_info(final_decision: str, consolidation_report: str) -> Di
             info["confidence"] = 0.7
 
     # 尝试提取目标价
-    target_match = re.search(r'目标价[位]?[：:]\s*(\d+\.?\d*)', consolidation_report)
+    target_match = re.search(r'目标价[位]?[：:]\s*[¥￥]?(\d+\.?\d*)', consolidation_report)
     if target_match:
         info["target_price"] = float(target_match.group(1))
 
@@ -703,9 +766,9 @@ def _extract_decision_info(final_decision: str, consolidation_report: str) -> Di
         info["stop_loss"] = float(stop_match.group(1))
 
     # 尝试提取仓位
-    position_match = re.search(r'建议仓位[：:]\s*(\d+)%', consolidation_report)
+    position_match = re.search(r'建议仓位[：:]\s*(\d+(?:\.\d+)?)%', consolidation_report)
     if position_match:
-        info["position_size"] = int(position_match.group(1))
+        info["position_size"] = float(position_match.group(1))
 
     return info
 
