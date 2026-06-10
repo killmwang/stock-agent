@@ -62,26 +62,33 @@ def fetch_top_from_category(
     ] = "reddit_data",
 ):
     base_path = data_path
+    category_path = os.path.join(base_path, category)
 
     all_content = []
 
-    if max_limit < len(os.listdir(os.path.join(base_path, category))):
+    if not os.path.isdir(category_path):
+        return all_content
+
+    data_files = [
+        data_file
+        for data_file in os.listdir(category_path)
+        if data_file.endswith(".jsonl")
+    ]
+
+    if not data_files:
+        return all_content
+
+    if max_limit < len(data_files):
         raise ValueError(
             "REDDIT FETCHING ERROR: max limit is less than the number of files in the category. Will not be able to fetch any posts"
         )
 
-    limit_per_subreddit = max_limit // len(
-        os.listdir(os.path.join(base_path, category))
-    )
+    limit_per_subreddit = max_limit // len(data_files)
 
-    for data_file in os.listdir(os.path.join(base_path, category)):
-        # check if data_file is a .jsonl file
-        if not data_file.endswith(".jsonl"):
-            continue
-
+    for data_file in data_files:
         all_content_curr_subreddit = []
 
-        with open(os.path.join(base_path, category, data_file), "rb") as f:
+        with open(os.path.join(category_path, data_file), "rb") as f:
             for i, line in enumerate(f):
                 # skip empty lines
                 if not line.strip():
@@ -98,11 +105,14 @@ def fetch_top_from_category(
 
                 # if is company_news, check that the title or the content has the company's name (query) mentioned
                 if "company" in category and query:
+                    company_name = ticker_to_company.get(query)
+                    if not company_name:
+                        continue
                     search_terms = []
-                    if "OR" in ticker_to_company[query]:
-                        search_terms = ticker_to_company[query].split(" OR ")
+                    if "OR" in company_name:
+                        search_terms = company_name.split(" OR ")
                     else:
-                        search_terms = [ticker_to_company[query]]
+                        search_terms = [company_name]
 
                     search_terms.append(query)
 
