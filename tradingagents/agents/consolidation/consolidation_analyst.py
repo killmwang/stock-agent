@@ -68,8 +68,13 @@ def _extract_report_rating(report: str) -> str:
         if not match:
             continue
         rating = match.group(1).strip()
-        if '/' not in rating:
-            return rating
+        if '/' in rating or '／' in rating:
+            parts = [p.strip() for p in re.split(r'[/／]', rating) if p.strip()]
+            # Ignore template-like option lists, but keep concrete mixed ratings
+            # such as "持有/观望".
+            if len(parts) > 2:
+                continue
+        return rating
     return ""
 
 
@@ -103,6 +108,124 @@ def _extract_report_target_price(report: str) -> Optional[float]:
             except ValueError:
                 continue
     return None
+
+
+def _format_price(value: float) -> str:
+    return f"{value:.2f}"
+
+
+def _extract_report_current_price(report: str) -> Optional[float]:
+    """Extract current price from the consolidated report as a fallback."""
+    patterns = [
+        r'当前股价[：:]\s*[¥￥]?(\d+(?:\.\d+)?)',
+        r'当前价[格]?[：:]\s*[¥￥]?(\d+(?:\.\d+)?)',
+        r'现价[：:]\s*[¥￥]?(\d+(?:\.\d+)?)',
+        r'较现价\s*[¥￥]?(\d+(?:\.\d+)?)',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, report)
+        if match:
+            try:
+                return float(match.group(1))
+            except ValueError:
+                continue
+    return None
+
+
+def _correct_quarter_eps_pe_target(
+    report: str,
+    target_price: Optional[float],
+    current_price: Optional[float],
+) -> tuple[str, Optional[float]]:
+    """
+    Correct PE targets that directly multiply quarterly EPS by annual PE.
+
+    Example bad pattern: EPS 10.42 x 11 PE = 114.62 while price is 1266.74.
+    If no annual/TTM EPS wording is present and the implied target is far below
+    current price, assume the EPS is single-period and annualize it.
+    """
+    if not current_price:
+        return report, target_price
+
+    formula_pattern = (
+        r'(\d+(?:\.\d+)?)\s*元?\s*[×xX*]\s*'
+        r'(\d+(?:\.\d+)?)\s*(?:倍|x|X)?\s*=?\s*'
+        r'(\d+(?:\.\d+)?)\s*元'
+    )
+
+    for match in re.finditer(formula_pattern, report):
+        try:
+            eps = float(match.group(1))
+            multiple = float(match.group(2))
+            stated_target = float(match.group(3))
+        except ValueError:
+            continue
+
+        direct_target = eps * multiple
+        if stated_target == 0:
+            continue
+        if abs(stated_target - direct_target) / stated_target > 0.03:
+            continue
+
+        context = report[max(0, match.start() - 180): match.start()]
+        if re.search(r'TTM|ttm|年化|全年|年度|预测EPS|全年预测', context):
+            continue
+
+        if stated_target / current_price >= 0.5:
+            continue
+
+        corrected_target = direct_target * 4
+        old_price = _format_price(stated_target)
+        new_price = _format_price(corrected_target)
+        report = re.sub(
+            rf'{re.escape(old_price)}\s*元',
+            f'{new_price}元',
+            report,
+            count=0,
+        )
+
+        note = (
+            f"- EPS口径校验：原计算疑似使用单期EPS {eps:.2f}元直接乘以"
+            f"{multiple:.1f}倍PE；PE估值应使用TTM/全年预测/年化EPS，"
+            f"已按年化EPS {eps * 4:.2f}元修正目标价为{new_price}元。"
+        )
+        lines = report.split("\n")
+        inserted = False
+        for i, line in enumerate(lines):
+            if "目标价位推导" in line or "目标价" in line:
+                lines.insert(i + 1, note)
+                inserted = True
+                break
+        if not inserted:
+            lines.insert(0, note)
+        report = "\n".join(lines)
+
+        logger.warning(
+            "[Consistency] PE目标价EPS口径已修正: %.2f -> %.2f (EPS %.2f x %.1f x 4)",
+            stated_target,
+            corrected_target,
+            eps,
+            multiple,
+        )
+        return report, corrected_target
+
+    return report, target_price
+
+
+def _correct_target_change_text(
+    report: str,
+    target_price: Optional[float],
+    current_price: Optional[float],
+) -> str:
+    """Correct target-vs-current percentage text when both prices are known."""
+    if not target_price or not current_price:
+        return report
+
+    change_pct = (target_price - current_price) / current_price * 100
+    direction = "上涨" if change_pct >= 0 else "下跌"
+    replacement = f"较现价{current_price:.2f}元{direction}{abs(change_pct):.1f}%"
+    pattern = r'较现价\s*[¥￥]?\s*\d+(?:\.\d+)?\s*元?\s*(?:上涨|下跌)\s*\d+(?:\.\d+)?%'
+    return re.sub(pattern, replacement, report)
 
 
 def _replace_investment_rating(report: str, rating: str) -> str:
@@ -158,6 +281,14 @@ def _enforce_consolidation_consistency(
     rating = _extract_report_rating(report)
     position_size = _extract_position_size(report)
     target_price = _extract_report_target_price(report)
+    if current_price is None:
+        current_price = _extract_report_current_price(report)
+    report, target_price = _correct_quarter_eps_pe_target(
+        report,
+        target_price,
+        current_price,
+    )
+    report = _correct_target_change_text(report, target_price, current_price)
     exit_language = any(
         term in report
         for term in ["清仓", "空仓", "回避", "不建议入场", "当前无任何买入信号"]
@@ -174,10 +305,14 @@ def _enforce_consolidation_consistency(
         reason = "报告出现清仓/回避/不建议入场等防守性操作建议"
     elif current_price and target_price:
         downside = (current_price - target_price) / current_price
-        if downside >= 0.10 and rating in ["", "持有", "买入", "强烈买入"]:
+        if downside >= 0.10 and (
+            not rating or any(term in rating for term in ["持有", "观望", "买入"])
+        ):
             corrected_rating = "卖出"
             reason = f"目标价较现价低约{downside * 100:.1f}%"
-        elif downside >= 0.03 and rating in ["", "持有", "买入", "强烈买入"]:
+        elif downside >= 0.03 and (
+            not rating or any(term in rating for term in ["持有", "观望", "买入"])
+        ):
             corrected_rating = "减持"
             reason = f"目标价较现价低约{downside * 100:.1f}%"
 
@@ -361,6 +496,7 @@ For report synthesis, valuation calculation, and risk-reward analysis:
   - **第一步**：提取基本面分析报告中的**估值决策**数据
   - **第二步**：严格遵循指定的**估值方法**和**目标倍数区间**
   - **禁止**：自行更换估值方法或倍数区间
+  - **EPS口径校验**：若使用PE估值，必须确认EPS是TTM/全年预测/年化EPS；若只拿到单季度EPS，必须年化后再乘PE，禁止直接用季度EPS × 年度PE
   - **计算公式**：目标价 = 基础每股收益（或净资产）× 目标倍数区间中值
   - **结论**：目标价 XX元（较现价上涨/下跌X%）。估值方法来源：基本面分析报告（指定方法）。
 - 核心投资逻辑（3-5点，每点需引用具体数据）
@@ -470,6 +606,7 @@ For report synthesis, valuation calculation, and risk-reward analysis:
 5. **可执行性**：建议必须具体到价位、仓位、时机、触发条件
 6. **评级-仓位一致**：若建议仓位为0%、清仓、回避或不建议入场，投资评级不得写为“持有”或“买入”，应写为“卖出/减持/观望”中最贴近的一项
 7. **目标价一致**：若主要目标价显著低于当前价，投资评级不得写为“买入/持有”，必须解释为减持或卖出逻辑
+8. **估值口径一致**：PE估值必须使用TTM EPS、全年预测EPS或年化EPS；使用季度EPS时必须先乘以4或说明年化方法，避免目标价低一个数量级
 '''
 
 

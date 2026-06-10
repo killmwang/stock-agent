@@ -733,6 +733,8 @@ class AnalysisService:
         # 尝试提取决策
         decision_terms = r"强烈买入|强烈卖出|买入|卖出|减持|持有|观望|回避|BUY|SELL|HOLD|REDUCE|AVOID|WATCH|STRONG BUY|STRONG SELL|STRONG_BUY|STRONG_SELL"
         decision_patterns = [
+            r"投资评级[：:]\s*【([^】\n]+)】",
+            r"投资评级[：:]\s*([^\n（(]+)",
             rf"投资评级[：:]\s*【?\s*({decision_terms})",
             rf"投资建议[：:]\s*【?\s*({decision_terms})",
             rf"建议[：:]\s*【?\s*({decision_terms})",
@@ -741,7 +743,11 @@ class AnalysisService:
         for pattern in decision_patterns:
             match = re.search(pattern, consolidation_report, re.IGNORECASE)
             if match:
-                summary["decision"] = self._normalize_decision_text(match.group(1))
+                candidate = match.group(1).strip()
+                parts = [p.strip() for p in re.split(r"[/／]", candidate) if p.strip()]
+                if len(parts) > 2:
+                    continue
+                summary["decision"] = self._normalize_decision_text(candidate)
                 break
 
         # 尝试提取目标价
