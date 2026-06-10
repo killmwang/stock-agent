@@ -57,6 +57,144 @@ def _extract_current_price(market_report: str) -> Optional[float]:
     return None
 
 
+def _extract_report_rating(report: str) -> str:
+    """Extract the explicit investment rating from the consolidated report."""
+    rating_patterns = [
+        r'投资评级[：:]\s*【([^】]+)】',
+        r'投资评级[：:]\s*([^\n（(]+)',
+    ]
+    for pattern in rating_patterns:
+        match = re.search(pattern, report)
+        if not match:
+            continue
+        rating = match.group(1).strip()
+        if '/' not in rating:
+            return rating
+    return ""
+
+
+def _extract_position_size(report: str) -> Optional[float]:
+    """Extract the first explicit recommended position size percentage."""
+    patterns = [
+        r'建议仓位[：:]\s*(?:不应超过|上限)?\s*(\d+(?:\.\d+)?)\s*%',
+        r'仓位(?:占比|上限)?[：:]\s*(?:不应超过|上限)?\s*(\d+(?:\.\d+)?)\s*%',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, report)
+        if match:
+            try:
+                return float(match.group(1))
+            except ValueError:
+                continue
+    return None
+
+
+def _extract_report_target_price(report: str) -> Optional[float]:
+    """Extract the first target price stated in the consolidated report."""
+    patterns = [
+        r'目标价[位]?[：:]\s*[¥￥]?(\d+(?:\.\d+)?)',
+        r'目标价[位]?\s*[¥￥]?(\d+(?:\.\d+)?)\s*元',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, report)
+        if match:
+            try:
+                return float(match.group(1))
+            except ValueError:
+                continue
+    return None
+
+
+def _replace_investment_rating(report: str, rating: str) -> str:
+    """Replace or insert the investment rating line."""
+    pattern = r'(?m)^(\s*[-*]?\s*)投资评级[：:]\s*【?[^】\n]+】?'
+    match = re.search(pattern, report)
+    if match:
+        prefix = match.group(1)
+        replacement = f"{prefix}投资评级：【{rating}】"
+        return report[:match.start()] + replacement + report[match.end():]
+
+    lines = report.split("\n")
+    for i, line in enumerate(lines):
+        if "执行摘要" in line or "Executive Summary" in line:
+            lines.insert(i + 1, f"- 投资评级：【{rating}】")
+            return "\n".join(lines)
+    return f"- 投资评级：【{rating}】\n{report}"
+
+
+def _insert_consistency_note(report: str, rating: str, reason: str) -> str:
+    """Insert a concise note explaining an automatic consistency correction."""
+    note = f"- 一致性校验：{reason}，评级已调整为【{rating}】。"
+    if "一致性校验" in report:
+        return report
+
+    lines = report.split("\n")
+    for i, line in enumerate(lines):
+        if "投资评级" in line:
+            lines.insert(i + 1, note)
+            return "\n".join(lines)
+    lines.insert(0, note)
+    return "\n".join(lines)
+
+
+def _rating_to_signal(rating: str) -> str:
+    if "买入" in rating:
+        return "BUY"
+    if "卖出" in rating or "减持" in rating or "回避" in rating:
+        return "SELL"
+    return "HOLD"
+
+
+def _enforce_consolidation_consistency(
+    report: str,
+    current_price: Optional[float],
+) -> tuple[str, Optional[str]]:
+    """
+    Enforce consistency among rating, target price, and position advice.
+
+    The LLM may produce contradictory text such as "持有" with "0%仓位/清仓".
+    This deterministic pass keeps the final report internally consistent.
+    """
+    rating = _extract_report_rating(report)
+    position_size = _extract_position_size(report)
+    target_price = _extract_report_target_price(report)
+    exit_language = any(
+        term in report
+        for term in ["清仓", "空仓", "回避", "不建议入场", "当前无任何买入信号"]
+    )
+
+    corrected_rating = ""
+    reason = ""
+
+    if position_size is not None and position_size <= 0:
+        corrected_rating = "卖出"
+        reason = "报告建议仓位为0%，与持有评级冲突"
+    elif exit_language:
+        corrected_rating = "卖出"
+        reason = "报告出现清仓/回避/不建议入场等防守性操作建议"
+    elif current_price and target_price:
+        downside = (current_price - target_price) / current_price
+        if downside >= 0.10 and rating in ["", "持有", "买入", "强烈买入"]:
+            corrected_rating = "卖出"
+            reason = f"目标价较现价低约{downside * 100:.1f}%"
+        elif downside >= 0.03 and rating in ["", "持有", "买入", "强烈买入"]:
+            corrected_rating = "减持"
+            reason = f"目标价较现价低约{downside * 100:.1f}%"
+
+    if not corrected_rating or corrected_rating == rating:
+        return report, None
+
+    report = _replace_investment_rating(report, corrected_rating)
+    report = _insert_consistency_note(report, corrected_rating, reason)
+    logger.warning(
+        "[Consistency] 综合报告评级已修正: %s -> %s (%s)",
+        rating or "未提取",
+        corrected_rating,
+        reason,
+    )
+    return report, _rating_to_signal(corrected_rating)
+
+
 def _auto_update_past_outcomes(
     memory,
     ticker: str,
@@ -330,6 +468,8 @@ For report synthesis, valuation calculation, and risk-reward analysis:
 3. **条件触发**：入场/止损条件必须是可验证的具体条件，而非模糊描述
 4. **风险收益平衡**：既要揭示风险，也要识别机会。错过低估机会和买入高估股票都是决策失误
 5. **可执行性**：建议必须具体到价位、仓位、时机、触发条件
+6. **评级-仓位一致**：若建议仓位为0%、清仓、回避或不建议入场，投资评级不得写为“持有”或“买入”，应写为“卖出/减持/观望”中最贴近的一项
+7. **目标价一致**：若主要目标价显著低于当前价，投资评级不得写为“买入/持有”，必须解释为减持或卖出逻辑
 '''
 
 
@@ -724,6 +864,16 @@ def create_consolidation_analyst(llm, decision_memory=None):
         except Exception as e:
             logger.warning(f"[Validation] 估值验证过程出错: {e}")
 
+        # ========== 1.7 投资评级/仓位/目标价一致性校验 ==========
+        corrected_signal = None
+        try:
+            consolidation_report, corrected_signal = _enforce_consolidation_consistency(
+                consolidation_report,
+                current_price=current_price,
+            )
+        except Exception as e:
+            logger.warning(f"[Consistency] 综合报告一致性校验失败: {e}")
+
         # ========== 2. 记录本次决策到 Memory ==========
         logger.info(f"[Memory] decision_memory is None: {decision_memory is None}")
         if decision_memory is not None:
@@ -795,8 +945,17 @@ def create_consolidation_analyst(llm, decision_memory=None):
                 logger.error(f"❌ 记录决策到 Memory 失败: {e}")
                 logger.error(f"Traceback: {traceback.format_exc()}")
 
-        return {
+        result = {
             "consolidation_report": consolidation_report
         }
+        if corrected_signal:
+            original_decision = state.get("final_trade_decision", "")
+            result["final_trade_decision"] = (
+                f"{corrected_signal}\n\n"
+                "【综合报告一致性校验】评级、仓位和目标价出现冲突，"
+                f"最终交易信号已按综合报告修正为 {corrected_signal}。\n\n"
+                f"原风险评估决策：\n{original_decision}"
+            )
+        return result
 
     return consolidation_node

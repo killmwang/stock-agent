@@ -225,7 +225,12 @@ export const AnalysisPage: React.FC = () => {
     const d = decision.toLowerCase();
     if (d.includes('买') || d.includes('buy'))
       return { background: '#dcfce7', color: '#15803d' };
-    if (d.includes('卖') || d.includes('sell'))
+    if (
+      d.includes('卖') ||
+      d.includes('sell') ||
+      d.includes('减') ||
+      d.includes('回避')
+    )
       return { background: '#fee2e2', color: '#dc2626' };
     return { background: '#fef3c7', color: '#d97706' };
   };

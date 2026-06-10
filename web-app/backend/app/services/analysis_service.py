@@ -616,6 +616,9 @@ class AnalysisService:
             result["summary"] = self._extract_summary(
                 result["reports"]["consolidation_report"]["content"]
             )
+            report_decision = result["summary"].get("decision")
+            if report_decision:
+                result["decision"] = report_decision
 
         return result
 
@@ -684,10 +687,37 @@ class AnalysisService:
             "buy": "买入",
             "sell": "卖出",
             "hold": "持有",
+            "reduce": "减持",
+            "avoid": "观望",
+            "watch": "观望",
             "strong_buy": "强烈买入",
             "strong_sell": "强烈卖出",
         }
         return signal_map.get(signal.lower(), signal)
+
+    def _normalize_decision_text(self, decision: str) -> str:
+        """标准化报告中提取到的中文/英文决策文本"""
+        if not decision:
+            return decision
+
+        text = decision.strip().strip("【】[]()（）")
+        text_upper = text.upper().replace(" ", "_")
+
+        if "强烈卖出" in text or text_upper == "STRONG_SELL":
+            return "强烈卖出"
+        if "强烈买入" in text or text_upper == "STRONG_BUY":
+            return "强烈买入"
+        if "减持" in text or "回避" in text or text_upper in {"REDUCE", "AVOID"}:
+            return "减持"
+        if "卖出" in text or text_upper == "SELL":
+            return "卖出"
+        if "买入" in text or text_upper == "BUY":
+            return "买入"
+        if "观望" in text or text_upper == "WATCH":
+            return "观望"
+        if "持有" in text or text_upper == "HOLD":
+            return "持有"
+        return text
 
     def _extract_summary(self, consolidation_report: str) -> dict:
         """从综合报告中提取摘要信息"""
@@ -701,15 +731,17 @@ class AnalysisService:
         }
 
         # 尝试提取决策
+        decision_terms = r"强烈买入|强烈卖出|买入|卖出|减持|持有|观望|回避|BUY|SELL|HOLD|REDUCE|AVOID|WATCH|STRONG BUY|STRONG SELL|STRONG_BUY|STRONG_SELL"
         decision_patterns = [
-            r"投资建议[：:]\s*(买入|卖出|持有|观望)",
-            r"建议[：:]\s*(买入|卖出|持有|观望)",
-            r"决策[：:]\s*(BUY|SELL|HOLD)",
+            rf"投资评级[：:]\s*【?\s*({decision_terms})",
+            rf"投资建议[：:]\s*【?\s*({decision_terms})",
+            rf"建议[：:]\s*【?\s*({decision_terms})",
+            rf"决策[：:]\s*【?\s*({decision_terms})",
         ]
         for pattern in decision_patterns:
             match = re.search(pattern, consolidation_report, re.IGNORECASE)
             if match:
-                summary["decision"] = match.group(1)
+                summary["decision"] = self._normalize_decision_text(match.group(1))
                 break
 
         # 尝试提取目标价

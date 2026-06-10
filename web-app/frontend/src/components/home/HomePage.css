@@ -610,6 +610,8 @@
 /* 卖出 - 红色 */
 .history-decision.sell,
 .history-decision[data-decision="卖出"],
+.history-decision[data-decision="强烈卖出"],
+.history-decision[data-decision="减持"],
 .history-item.sell .history-decision {
   background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
   color: #dc2626;
@@ -619,6 +621,7 @@
 /* 持有 - 黄色 */
 .history-decision.hold,
 .history-decision[data-decision="持有"],
+.history-decision[data-decision="观望"],
 .history-item.hold .history-decision {
   background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
   color: #b45309;
