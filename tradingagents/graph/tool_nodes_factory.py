@@ -131,6 +131,8 @@ def _create_news_tools(toolkit) -> ToolNode:
         return ToolNode([
             toolkit.get_china_stock_news,
             toolkit.get_china_market_news,
+            toolkit.get_global_news_openai,
+            toolkit.get_google_news,
         ])
 
     return ToolNode([
