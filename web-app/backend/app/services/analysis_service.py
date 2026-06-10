@@ -775,16 +775,29 @@ class AnalysisService:
                 break
 
         # 尝试提取目标价
-        price_patterns = [
-            r"目标价[：:]\s*[¥￥]?([\d.]+)",
-            r"目标价位[：:]\s*[¥￥]?([\d.]+)",
-            r"target.*?[：:]\s*[¥￥]?([\d.]+)",
-        ]
-        for pattern in price_patterns:
-            match = re.search(pattern, consolidation_report, re.IGNORECASE)
+        for line in consolidation_report.splitlines():
+            if "目标价" not in line or "=" not in line:
+                continue
+            if not re.search(r"[×xX*]", line):
+                continue
+            right_side = line.rsplit("=", 1)[-1]
+            match = re.search(r"[¥￥]?([\d.]+)\s*元", right_side)
             if match:
                 summary["target_price"] = float(match.group(1))
                 break
+
+        price_patterns = [
+            r"目标价[：:]\s*[¥￥]?([\d.]+)",
+            r"目标价位[：:]\s*[¥￥]?([\d.]+)",
+            r"[：:]\s*[¥￥]?([\d.]+)\s*元[（(]估值目标[）)]",
+            r"target.*?[：:]\s*[¥￥]?([\d.]+)",
+        ]
+        if summary["target_price"] is None:
+            for pattern in price_patterns:
+                match = re.search(pattern, consolidation_report, re.IGNORECASE)
+                if match:
+                    summary["target_price"] = float(match.group(1))
+                    break
 
         # 尝试提取置信度
         conf_patterns = [

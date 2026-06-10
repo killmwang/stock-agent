@@ -144,9 +144,23 @@ def _extract_position_size(report: str) -> Optional[float]:
 
 def _extract_report_target_price(report: str) -> Optional[float]:
     """Extract the first target price stated in the consolidated report."""
+    for line in report.splitlines():
+        if "目标价" not in line or "=" not in line:
+            continue
+        if not re.search(r'[×xX*]', line):
+            continue
+        right_side = line.rsplit("=", 1)[-1]
+        match = re.search(r'[¥￥]?(\d+(?:\.\d+)?)\s*元', right_side)
+        if match:
+            try:
+                return float(match.group(1))
+            except ValueError:
+                continue
+
     patterns = [
         r'目标价[位]?[：:]\s*[¥￥]?(\d+(?:\.\d+)?)',
         r'目标价[位]?\s*[¥￥]?(\d+(?:\.\d+)?)\s*元',
+        r'[：:]\s*[¥￥]?(\d+(?:\.\d+)?)\s*元[（(]估值目标[）)]',
     ]
     for pattern in patterns:
         match = re.search(pattern, report)
@@ -166,8 +180,10 @@ def _extract_report_current_price(report: str) -> Optional[float]:
     """Extract current price from the consolidated report as a fallback."""
     patterns = [
         r'当前股价[：:]\s*[¥￥]?(\d+(?:\.\d+)?)',
+        r'当前现价[：:]?\s*[¥￥]?(\d+(?:\.\d+)?)',
         r'当前价[格]?[：:]\s*[¥￥]?(\d+(?:\.\d+)?)',
         r'现价[：:]\s*[¥￥]?(\d+(?:\.\d+)?)',
+        r'较当前现价\s*[¥￥]?(\d+(?:\.\d+)?)',
         r'较现价\s*[¥￥]?(\d+(?:\.\d+)?)',
     ]
     for pattern in patterns:
@@ -283,8 +299,29 @@ def _correct_target_change_text(
     change_pct = (target_price - current_price) / current_price * 100
     direction = "上涨" if change_pct >= 0 else "下跌"
     replacement = f"较现价{current_price:.2f}元{direction}{abs(change_pct):.1f}%"
-    pattern = r'较现价\s*[¥￥]?\s*\d+(?:\.\d+)?\s*元?\s*(?:上涨|下跌)\s*\d+(?:\.\d+)?%'
+    pattern = (
+        r'较(?:当前)?现价\s*[¥￥]?\s*\d+(?:\.\d+)?\s*元?\s*'
+        r'(?:上涨|下跌)\s*\*{0,2}-?\d+(?:\.\d+)?%\*{0,2}'
+    )
     return re.sub(pattern, replacement, report)
+
+
+def _remove_empty_history_section(report: str) -> str:
+    """Remove the history section when the model restates there is no history."""
+    marker = re.search(r'(?m)^\s*(?:#{1,4}\s*)?6[.、]\s*历史决策回顾.*$', report)
+    if not marker:
+        return report
+
+    tail = report[marker.start():]
+    if "首次分析此股票" not in tail and "无历史决策记录" not in tail:
+        return report
+
+    next_section = re.search(r'(?m)^\s*(?:#{1,4}\s*)?7[.、]\s*免责声明.*$', report[marker.end():])
+    if not next_section:
+        return report[:marker.start()].rstrip() + "\n"
+
+    next_start = marker.end() + next_section.start()
+    return (report[:marker.start()].rstrip() + "\n\n" + report[next_start:].lstrip())
 
 
 def _replace_investment_rating(report: str, rating: str) -> str:
@@ -338,6 +375,7 @@ def _enforce_consolidation_consistency(
     The LLM may produce contradictory text such as "持有" with "0%仓位/清仓".
     This deterministic pass keeps the final report internally consistent.
     """
+    report = _remove_empty_history_section(report)
     rating = _extract_report_rating(report)
     position_size = _extract_position_size(report)
     target_price = _extract_report_target_price(report)
