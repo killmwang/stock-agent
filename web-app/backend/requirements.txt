@@ -1,4 +1,4 @@
-# TradingAgents Web Backend Dependencies
+# Stock Agent Web Backend Dependencies
 
 # Web Framework
 fastapi>=0.109.0
@@ -28,5 +28,5 @@ psutil>=5.9.0
 httpx>=0.25.0
 feedparser>=6.0.0
 
-# Note: TradingAgents dependencies (langchain, openai, etc.)
+# Note: core analysis dependencies (langchain, openai, etc.)
 # should be installed from the main project's requirements.txt

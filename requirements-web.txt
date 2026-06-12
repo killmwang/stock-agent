@@ -1,4 +1,4 @@
-# TradingAgents Chatbot Web 依赖
+# Stock Agent Chatbot Web dependencies
 # pip install -r requirements-web.txt
 
 # Web 框架

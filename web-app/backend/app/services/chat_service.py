@@ -29,7 +29,7 @@ class ChatService:
                 logger.info("🚀 开始初始化 ChatbotGraph...")
                 import time
                 start = time.time()
-                from tradingagents.chatbot import ChatbotGraph
+                from stock_agent.chatbot import ChatbotGraph
                 self._chatbot = ChatbotGraph()
                 elapsed = time.time() - start
                 logger.info(f"✅ ChatbotGraph 初始化成功，耗时 {elapsed:.2f}s")
@@ -237,7 +237,7 @@ class ChatService:
     def _get_query_type(self, message: str) -> str:
         """获取查询类型"""
         try:
-            from tradingagents.chatbot.agents.router import get_router
+            from stock_agent.chatbot.agents.router import get_router
             router = get_router()
             query_type = router.route(message)
             return query_type.value

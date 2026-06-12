@@ -20,7 +20,7 @@ chat_app = typer.Typer(
 
 def get_chatbot():
     """延迟导入并创建 Chatbot"""
-    from tradingagents.chatbot import SimpleChatbot
+    from stock_agent.chatbot import SimpleChatbot
     return SimpleChatbot()
 
 
@@ -150,7 +150,7 @@ def test_chatbot():
 
     # 测试导入
     try:
-        from tradingagents.chatbot import SimpleChatbot
+        from stock_agent.chatbot import SimpleChatbot
         console.print("[green]✓ 模块导入成功[/green]")
     except Exception as e:
         console.print(f"[red]✗ 模块导入失败: {e}[/red]")
@@ -158,7 +158,7 @@ def test_chatbot():
 
     # 测试工具加载
     try:
-        from tradingagents.chatbot.tools.registry import load_core_tools
+        from stock_agent.chatbot.tools.registry import load_core_tools
         tools = load_core_tools()
         console.print(f"[green]✓ 加载 {len(tools)} 个工具: {[t.name for t in tools]}[/green]")
     except Exception as e:

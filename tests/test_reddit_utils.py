@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tradingagents.dataflows.reddit_utils import fetch_top_from_category
+from stock_agent.dataflows.reddit_utils import fetch_top_from_category
 
 
 class RedditUtilsTests(unittest.TestCase):

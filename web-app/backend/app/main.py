@@ -4,7 +4,7 @@
 提供 REST API 服务：
 - /api/auth - 认证服务
 - /api/chat - 对话模式 (ChatbotGraph)
-- /api/analysis - 全面分析模式 (TradingAgentsGraph)
+- /api/analysis - 全面分析模式（多 Agent 分析图）
 - /api/trendradar - 市场热点雷达
 """
 import os

@@ -4689,7 +4689,7 @@ wheels = [
 ]
 
 [[package]]
-name = "tradingagents"
+name = "stock-agent"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

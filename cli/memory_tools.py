@@ -1,7 +1,7 @@
 """
 Memory 管理工具
 
-管理TradingAgents的决策记忆：查看统计、手动追踪结果、清理旧记录
+管理 Stock Agent 的决策记忆：查看统计、手动追踪结果、清理旧记录
 """
 
 import typer
@@ -12,14 +12,14 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
-from tradingagents.default_config import DEFAULT_CONFIG
+from stock_agent.default_config import DEFAULT_CONFIG
 
 console = Console()
 
 
 def get_memory_instance():
     """获取 Memory 实例"""
-    from tradingagents.agents.utils.memory import FinancialSituationMemory
+    from stock_agent.agents.utils.memory import FinancialSituationMemory
 
     return FinancialSituationMemory(
         name="trader_memory",
@@ -148,7 +148,7 @@ def memory_update_outcomes(
     date: Optional[str] = typer.Option(None, "--date", "-d", help="当前日期 (YYYY-MM-DD)")
 ):
     """手动触发结果追踪更新"""
-    from tradingagents.agents.utils.memory import get_historical_price
+    from stock_agent.agents.utils.memory import get_historical_price
 
     try:
         memory = get_memory_instance()

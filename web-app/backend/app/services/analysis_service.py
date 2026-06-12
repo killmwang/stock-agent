@@ -1,7 +1,7 @@
 """
 分析服务
 
-封装 TradingAgentsGraph，提供异步分析任务管理。
+封装多 Agent 分析图，提供异步分析任务管理。
 """
 import uuid
 import threading
@@ -206,9 +206,9 @@ class AnalysisService:
             self._add_log(task_id, f"开始分析 {task.ticker_name} ({task.ticker})")
 
             # 延迟导入，避免启动时加载
-            from tradingagents.graph.trading_graph import TradingAgentsGraph
-            from tradingagents.default_config import DEFAULT_CONFIG
-            from tradingagents.utils.data_logger import ToolDataLogger
+            from stock_agent.graph.trading_graph import StockAgentGraph
+            from stock_agent.default_config import DEFAULT_CONFIG
+            from stock_agent.utils.data_logger import ToolDataLogger
             from langchain_core.messages import ToolMessage
 
             # 创建工具数据记录器（与 CLI 一致）
@@ -233,7 +233,7 @@ class AnalysisService:
 
             # 创建 Graph
             self._add_log(task_id, "初始化分析系统...")
-            trading_graph = TradingAgentsGraph(
+            trading_graph = StockAgentGraph(
                 config=config,
                 selected_analysts=selected_analysts
             )

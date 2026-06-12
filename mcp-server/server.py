@@ -94,8 +94,8 @@ def check_environment() -> dict:
 async def run_analysis(ticker: str, date: str, depth: str = "medium") -> dict:
     """执行股票分析"""
     try:
-        from tradingagents.graph.trading_graph import TradingAgentsGraph
-        from tradingagents.default_config import DEFAULT_CONFIG
+        from stock_agent.graph.trading_graph import StockAgentGraph
+        from stock_agent.default_config import DEFAULT_CONFIG
 
         # 配置
         config = DEFAULT_CONFIG.copy()
@@ -130,7 +130,7 @@ async def run_analysis(ticker: str, date: str, depth: str = "medium") -> dict:
 
         # 初始化
         ticker_full = get_ticker_suffix(ticker)
-        graph = TradingAgentsGraph(
+        graph = StockAgentGraph(
             ["market", "social", "news", "fundamentals"],
             config=config,
             debug=False

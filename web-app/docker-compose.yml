@@ -17,8 +17,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # 挂载 tradingagents 模块
-      - ../tradingagents:/app/tradingagents:ro
+      # 挂载多 Agent 核心模块
+      - ../stock_agent:/app/stock_agent:ro
       # 挂载配置文件（需要写入 admin_logs.json, api_stats.json）
       - ./backend/config:/app/config
       # 挂载数据目录（bind mount 到宿主机目录，确保持久化）
@@ -30,5 +30,5 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - TUSHARE_TOKEN=${TUSHARE_TOKEN}
       - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
-      - PYTHONPATH=/app:/app/tradingagents
+      - PYTHONPATH=/app:/app/stock_agent
     restart: unless-stopped

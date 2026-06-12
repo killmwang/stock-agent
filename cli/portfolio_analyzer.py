@@ -56,7 +56,7 @@ class PortfolioAnalyzer:
         Returns:
             分析结果字典
         """
-        from tradingagents.graph.trading_graph import TradingAgentsGraph
+        from stock_agent.graph.trading_graph import StockAgentGraph
 
         result = {
             "ticker": ticker,
@@ -73,7 +73,7 @@ class PortfolioAnalyzer:
 
         try:
             # 创建独立的Graph实例
-            graph = TradingAgentsGraph(analysts, config=self.config, debug=False)
+            graph = StockAgentGraph(analysts, config=self.config, debug=False)
 
             # 创建初始状态
             init_state = graph.propagator.create_initial_state(ticker, analysis_date)
@@ -455,7 +455,7 @@ class PortfolioAnalyzer:
         md_content += """
 ---
 
-*由 TradingAgents AI Research 系统生成*
+*由 Stock Agent AI Research 系统生成*
 """
 
         with open(report_path, "w", encoding="utf-8") as f:

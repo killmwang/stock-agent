@@ -1,4 +1,4 @@
-# TradingAgents Backend Dockerfile
+# Stock Agent Backend Dockerfile
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
 RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
     pip config set install.trusted-host mirrors.aliyun.com
 
-# 复制主项目依赖文件（TradingAgents 核心依赖）
+# 复制主项目依赖文件（多 Agent 核心依赖）
 # 构建上下文是项目根目录
 COPY requirements.txt ./requirements-main.txt
 
@@ -32,7 +32,7 @@ RUN pip install --no-cache-dir -r requirements-main.txt && \
 COPY web-app/backend/app/ ./app/
 
 # 环境变量
-ENV PYTHONPATH=/app:/app/tradingagents
+ENV PYTHONPATH=/app:/app/stock_agent
 ENV PYTHONUNBUFFERED=1
 
 # 暴露端口

@@ -1,7 +1,7 @@
 """
 分析路由
 
-提供全面分析 API 端点（包装 TradingAgentsGraph）。
+提供全面分析 API 端点（包装多 Agent 分析图）。
 """
 import re
 import os
@@ -144,7 +144,7 @@ async def start_analysis(
     """
     启动全面分析任务
 
-    - 调用 TradingAgentsGraph 进行完整分析
+    - 调用多 Agent 分析图进行完整分析
     - 分析过程约 5-10 分钟
     - 返回 task_id 用于查询进度
     """

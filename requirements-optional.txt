@@ -1,4 +1,4 @@
-# Optional Dependencies for TradingAgents
+# Optional dependencies for Stock Agent
 # Install specific groups as needed:
 # pip install -r requirements-optional.txt
 

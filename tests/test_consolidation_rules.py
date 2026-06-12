@@ -8,7 +8,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "web-app" / "backend"))
 
 from app.services.analysis_service import AnalysisService
-from tradingagents.agents.consolidation.consolidation_analyst import (
+from stock_agent.agents.consolidation.consolidation_analyst import (
     _enforce_consolidation_consistency,
     _extract_decision_info,
     _extract_report_target_price,

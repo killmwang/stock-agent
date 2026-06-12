@@ -1,16 +1,14 @@
-"""
-Setup script for the TradingAgents package.
-"""
+"""Setup script for the Stock Agent package."""
 
 from setuptools import setup, find_packages
 
 setup(
-    name="tradingagents",
+    name="stock-agent",
     version="0.1.0",
-    description="Multi-Agents LLM Financial Trading Framework",
-    author="TradingAgents Team",
-    author_email="yijia.xiao@cs.ucla.edu",
-    url="https://github.com/TauricResearch",
+    description="AStock intelligent stock selection agent",
+    author="Stock Agent Team",
+    author_email="",
+    url="https://github.com/killmwang/stock-agent",
     packages=find_packages(),
     install_requires=[
         "langchain>=0.1.0",
@@ -29,7 +27,7 @@ setup(
     python_requires=">=3.10",
     entry_points={
         "console_scripts": [
-            "tradingagents=cli.main:app",
+            "stock-agent=cli.main:app",
         ],
     },
     classifiers=[

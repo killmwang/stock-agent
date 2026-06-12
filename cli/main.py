@@ -21,27 +21,27 @@ from rich import box
 from rich.align import Align
 from rich.rule import Rule
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.dataflows.logging_config import init_logging
+from stock_agent.graph.trading_graph import StockAgentGraph
+from stock_agent.default_config import DEFAULT_CONFIG
+from stock_agent.dataflows.logging_config import init_logging
 
 # 初始化日志系统
 init_logging(log_level="INFO", enable_console=False, enable_file=True)
 from cli.models import AnalystType
 from cli.utils import *
 from cli.analytics import AnalyticsTracker
-from tradingagents.utils.data_logger import ToolDataLogger
+from stock_agent.utils.data_logger import ToolDataLogger
 from cli.decision_tracker import DecisionTracker, parse_decision_from_report, get_price_from_report
 from langchain_core.messages import ToolMessage
 
 console = Console()
 
 # Portfolio数据目录（提前定义供get_portfolio_selections使用）
-PORTFOLIO_DATA_DIR = Path(DEFAULT_CONFIG.get("data_dir", "~/Documents/TradingAgents/data")).expanduser()
+PORTFOLIO_DATA_DIR = Path(DEFAULT_CONFIG.get("data_dir", "./data")).expanduser()
 
 app = typer.Typer(
-    name="TradingAgents",
-    help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
+    name="stock-agent",
+    help="Stock Agent CLI: A-share multi-agent analysis framework",
     add_completion=True,  # Enable shell completion
     invoke_without_command=True,  # Allow running without a command
 )
@@ -50,7 +50,7 @@ app = typer.Typer(
 @app.callback()
 def main_callback(ctx: typer.Context):
     """
-    TradingAgents: Multi-Agents LLM Financial Trading Framework
+    Stock Agent: A-share multi-agent analysis framework
 
     直接运行进入交互式分析界面，或使用子命令管理Portfolio。
     """
@@ -258,9 +258,9 @@ def update_display(layout, spinner_text=None):
     # Header with welcome message
     layout["header"].update(
         Panel(
-            "[bold green]Welcome to TradingAgents CLI[/bold green]\n"
-            "[dim]© [Tauric Research](https://github.com/TauricResearch)[/dim]",
-            title="Welcome to TradingAgents",
+            "[bold green]Welcome to Stock Agent CLI[/bold green]\n"
+            "[dim]AStock multi-agent analysis system[/dim]",
+            title="Welcome to Stock Agent",
             border_style="green",
             padding=(1, 2),
             expand=True,
@@ -562,11 +562,11 @@ def get_user_selections():
 
     # Create welcome box content
     welcome_content = f"{welcome_ascii}\n"
-    welcome_content += "[bold green]TradingAgents: Multi-Agents LLM Financial Trading Framework - CLI[/bold green]\n\n"
+    welcome_content += "[bold green]Stock Agent: A-share multi-agent analysis framework - CLI[/bold green]\n\n"
     welcome_content += "[bold]Workflow Steps:[/bold]\n"
     welcome_content += "I. Analyst Team → II. Research Team → III. Trader → IV. Risk Management → V. Portfolio Management\n\n"
     welcome_content += (
-        "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
+        "[dim]AStock classroom demonstration project[/dim]"
     )
 
     # Create and center the welcome box
@@ -574,8 +574,8 @@ def get_user_selections():
         welcome_content,
         border_style="green",
         padding=(1, 2),
-        title="Welcome to TradingAgents",
-        subtitle="Multi-Agents LLM Financial Trading Framework",
+        title="Welcome to Stock Agent",
+        subtitle="A-share multi-agent analysis framework",
     )
     console.print(Align.center(welcome_box))
     console.print()  # Add a blank line after the welcome box
@@ -931,7 +931,7 @@ def extract_content_string(content):
         return str(content)
 
 def run_portfolio_analysis(selections: dict, save_log: bool = False):
-    """Run portfolio analysis with TradingAgents.
+    """Run portfolio analysis with Stock Agent.
 
     Args:
         selections: User selections dict with portfolio info
@@ -980,7 +980,7 @@ def run_portfolio_analysis(selections: dict, save_log: bool = False):
 
 
 def run_analysis(verbose: bool = False, save_log: bool = False):
-    """Run stock analysis with TradingAgents.
+    """Run stock analysis with Stock Agent.
 
     Args:
         verbose: Enable verbose output with more details
@@ -1007,7 +1007,7 @@ def run_analysis(verbose: bool = False, save_log: bool = False):
     message_buffer.tracker.set_model(selections["deep_thinker"])
 
     # Initialize the graph
-    graph = TradingAgentsGraph(
+    graph = StockAgentGraph(
         [analyst.value for analyst in selections["analysts"]], config=config, debug=True
     )
 
@@ -1116,7 +1116,7 @@ def run_analysis(verbose: bool = False, save_log: bool = False):
 
             # 获取当前价格（使用行情数据）
             try:
-                from tradingagents.dataflows.tushare_utils import get_stock_data
+                from stock_agent.dataflows.tushare_utils import get_stock_data
                 price_data = get_stock_data(selections["ticker"], days=30)
                 current_price = None
                 price_history = []
@@ -1579,7 +1579,7 @@ def analyze(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output with more details"),
     save_log: bool = typer.Option(False, "--save-log", "-l", help="Save detailed JSON log to results folder"),
 ):
-    """Run stock analysis with TradingAgents multi-agent system."""
+    """Run stock analysis with the Stock Agent multi-agent system."""
     run_analysis(verbose=verbose, save_log=save_log)
 
 
